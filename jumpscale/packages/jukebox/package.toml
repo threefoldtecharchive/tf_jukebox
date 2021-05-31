@@ -1,0 +1,38 @@
+name = "jukebox"
+is_package_authorized = true
+is_auth = false
+is_admin = false
+frontend = "/jukebox"
+
+[[static_dirs]]
+name = "frontend"
+path_url = ""
+path_location = "frontend/"
+index = "index.html"
+spa = true
+
+[[bottle_servers]]
+name = "jukebox"
+file_path = "bottle/jukebox.py"
+path_url = "/api/"
+path_dest = "/api/"
+host = "0.0.0.0"
+is_auth = false
+is_admin = false
+
+
+[[servers]]
+name = "root"
+domain = "jukebox.threefoldtoken.com"
+letsencryptemail = "testemail@gmail.com"
+includes = ["default_443.chatflows_*", "default_443.auth_*", "default_443.jukebox_*"]
+
+
+[[servers.locations]]
+name = "custom"
+type = "custom"
+custom_config = """
+location / {
+   rewrite ^(.+) /jukebox;
+}
+"""
