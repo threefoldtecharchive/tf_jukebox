@@ -38,7 +38,7 @@ module.exports = {
         )
           return;
         this.$router.push({
-          name: "Workloads",
+          name: "Marketplace",
         });
       });
     }

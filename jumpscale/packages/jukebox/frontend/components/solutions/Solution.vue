@@ -11,9 +11,9 @@
             dark
             large
             @click.stop="viewWorkloads()"
-            >List nodes</v-btn
+            >Jukebox deployer</v-btn
           >
-
+          <!--
           <v-btn
             color="#7DB78D"
             class="mt-8 mx-2"
@@ -22,6 +22,7 @@
             @click.stop="openChatflow('new_blockchain_node')"
             >Deploy new node</v-btn
           >
+          -->
         </v-col>
       </v-row>
     </v-parallax>
@@ -43,7 +44,7 @@ module.exports = {
       });
     },
     viewWorkloads() {
-      this.$router.push({ name: "Workloads" });
+      this.$router.push({ name: "Marketplace" });
     },
   },
 };

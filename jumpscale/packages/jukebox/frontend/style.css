@@ -11,3 +11,11 @@
 .table-colomns-max{
     max-width: 200px;
 }
+
+.version {
+    position: fixed;
+    bottom: 20px;
+    right: 10px;
+    font-size: small;
+    color: grey;
+}

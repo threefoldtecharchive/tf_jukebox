@@ -140,3 +140,33 @@ def accept():
             j.data.serializers.json.dumps({"allowed": True}), status=201, headers={"Content-Type": "application/json"}
         )
 
+
+@app.route("/api/allowed", method="GET")
+@authenticated
+def allowed():
+    # TODO
+    return j.data.serializers.json.dumps({"allowed": True})
+    # user_factory = StoredFactory(UserEntry)
+    # user_info = j.data.serializers.json.loads(get_user_info())
+    # tname = user_info["username"]
+    # explorer_url = j.core.identity.me.explorer.url
+    # instances = user_factory.list_all()
+    # for name in instances:
+    #     user_entry = user_factory.get(name)
+    #     if user_entry.tname == tname and user_entry.explorer_url == explorer_url and user_entry.has_agreed:
+    #         return j.data.serializers.json.dumps({"allowed": True})
+    # return j.data.serializers.json.dumps({"allowed": False})
+
+
+@app.route("/api/deployments/<solution_type>", method="GET")
+@package_authorized("jukebox")
+def list_deployments(solution_type: str) -> str:
+
+    return j.data.serializers.json.dumps({"data": {}})
+
+
+@app.route("/api/deployments", method="POST")
+@package_authorized("jukebox")
+def list_all_deployments() -> str:
+
+    return j.data.serializers.json.dumps({"data": {}})

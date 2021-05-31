@@ -31,30 +31,52 @@ const apiClient = {
       })
     },
   },
-  solutions: {
-    listVdcs: () => {
+  solutions: { //TODO in bottle API endpoints
+    getSolutions: (solutionType) => {
       return axios({
-        url: `/vdc/api/vdcs`,
+        url: `${baseURL}/deployments/${solutionType}`,
         method: "get",
-        headers: { 'Content-Type': 'application/json' }
-      })
-
-    },
-    getVdcInfo: (name) => {
-      return axios({
-        url: `/vdc/api/vdcs/` + name,
-        headers: { 'Content-Type': 'application/json' },
-        method: "get"
       })
     },
-    deleteVDC: (name) => {
+    getAllSolutions: (solutionTypes) => {
       return axios({
-        url: `/vdc/api/vdcs/delete`,
+        url: `${baseURL}/deployments`,
         method: "post",
-        data: { name: name },
+        data: { solution_types: solutionTypes },
         headers: { 'Content-Type': 'application/json' }
       })
     },
+    deleteSolution: (solutionId) => {
+      return axios({
+        url: `${baseURL}/deployments/cancel/`,
+        method: "post",
+        data: { solution_id: solutionId },
+        headers: { 'Content-Type': 'application/json' }
+      })
+    },
+    // listVdcs: () => {
+    //   return axios({
+    //     url: `/vdc/api/vdcs`,
+    //     method: "get",
+    //     headers: { 'Content-Type': 'application/json' }
+    //   })
+
+    // },
+    // getVdcInfo: (name) => {
+    //   return axios({
+    //     url: `/vdc/api/vdcs/` + name,
+    //     headers: { 'Content-Type': 'application/json' },
+    //     method: "get"
+    //   })
+    // },
+    // deleteVDC: (name) => {
+    //   return axios({
+    //     url: `/vdc/api/vdcs/delete`,
+    //     method: "post",
+    //     data: { name: name },
+    //     headers: { 'Content-Type': 'application/json' }
+    //   })
+    // },
   },
   license: {
     accept: () => {
