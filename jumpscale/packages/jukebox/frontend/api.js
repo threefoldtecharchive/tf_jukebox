@@ -81,7 +81,7 @@ const apiClient = {
   license: {
     accept: () => {
       return axios({
-        url: `/vdc/api/accept/`,
+        url: `${baseURL}/accept/`,
         method: "get"
       })
     },
@@ -89,7 +89,7 @@ const apiClient = {
   wallets: {
     walletQRCodeImage: (address, amount, scale) => {
       return axios({
-        url: `/vdc/api/wallet/qrcode/get`,
+        url: `${baseURL}/wallet/qrcode/get`,
         method: "post",
         data: { address: address,amount: amount, scale: scale},
         headers: { 'Content-Type': 'application/json' }
