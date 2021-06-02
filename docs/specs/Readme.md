@@ -1,4 +1,4 @@
-![specs](img/specs.png)
+![specs](../../img/specs.png)
 
 # System requirements
 
@@ -68,6 +68,6 @@ System that is easy to provision blockchain nodes (public, private)
 - Users will only need to login with tf-connect to the portal and only have to pay to intermediate wallet by scanning QR code from the browser
 - The advantage of this solution is the user experience will be consistent across our grid services(VDC deployer, 3bot deployers, Marketplace....). 
 
-![](img/sequence_diagram.png)
+![](../../img/sequence_diagram.png)
 
 
