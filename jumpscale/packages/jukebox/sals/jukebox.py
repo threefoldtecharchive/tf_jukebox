@@ -4,7 +4,6 @@ from jumpscale.clients.explorer.models import DiskType, NextAction, Container
 from enum import Enum
 from jumpscale.sals.reservation_chatflow import DeploymentFailed, deployer, deployment_context, solutions
 from jumpscale.sals.vdc.scheduler import Scheduler, GlobalCapacityChecker, GlobalScheduler
-
 import datetime
 from decimal import Decimal
 import uuid
@@ -53,16 +52,15 @@ class BlockchainNode(Base):
 
 
 flist_map = {
-    "digibyte": "http",
+    "digibyte": {"flist": "http"},
     "dash": "",
     "matic": "",
     "ubuntu": "https://hub.grid.tf/tf-bootable/3bot-ubuntu-20.04.flist",
 }
 
 
-def create_user_wallet(tname):
+def get_or_create_user_wallet(wallet_name):
     # Create a wallet for the user to be used in extending his pool
-    wallet_name = f"jukebox_{tname}"
     if not j.clients.stellar.find(wallet_name):
         wallet = j.clients.stellar.new(wallet_name)
         try:
@@ -80,6 +78,9 @@ def create_user_wallet(tname):
             )
 
         wallet.save()
+    else:
+        wallet = j.clients.stellar.get(wallet_name)
+    return wallet
 
 
 def create_empty_pool(identity_name, farm="freefarm"):
@@ -128,21 +129,21 @@ def get_possible_farms(cru, sru, mru, number_of_deployments):
     return farm_names
 
 
-def extend_pool(pool_id, cloud_units, farm, identity_name, wallet):
-    zos = j.sals.zos.get(identity_name)
-    node_ids = [node.node_id for node in zos.nodes_finder.nodes_search(farm)]
-    payment_info = zos.pools.extend(
-        pool_id=pool_id,
-        cu=int(cloud_units["cu"]),
-        su=int(cloud_units["su"]),
-        ipv4us=int(cloud_units["ipv4u"]),
-        node_ids=[],
-    )
-    # escrow_address, total_amount, escrow_asset = calculate_payment(payment_info)
-    zos.billing.payout_farmers(wallet, payment_info)
-    if not deployer.wait_pool_reservation(payment_info.reservation_id):
-        j.logger.warning(f"pool {pool_id} extension timedout for reservation: {payment_info.reservation_id}")
-    # wallet.transfer(destination_address=escrow_address, amount=total_amount, asset=escrow_asset)
+# def extend_pool(pool_id, cloud_units, farm, identity_name, wallet):
+#     zos = j.sals.zos.get(identity_name)
+#     node_ids = [node.node_id for node in zos.nodes_finder.nodes_search(farm)]
+#     payment_info = zos.pools.extend(
+#         pool_id=pool_id,
+#         cu=int(cloud_units["cu"]),
+#         su=int(cloud_units["su"]),
+#         ipv4us=int(cloud_units["ipv4u"]),
+#         node_ids=[],
+#     )
+#     # escrow_address, total_amount, escrow_asset = calculate_payment(payment_info)
+#     zos.billing.payout_farmers(wallet, payment_info)
+#     if not deployer.wait_pool_reservation(payment_info.reservation_id):
+#         j.logger.warning(f"pool {pool_id} extension timedout for reservation: {payment_info.reservation_id}")
+#     # wallet.transfer(destination_address=escrow_address, amount=total_amount, asset=escrow_asset)
 
 
 def create_capacity_pool(wallet, cu=100, su=100, ipv4us=0, farm="freefarm", identity_name=None):
@@ -346,7 +347,7 @@ def deploy_container(
 def start(identity_name, number_of_deployments=2):
 
     farm_id = 1
-    pool_id = create_empty_pool(identity_name)
+    pool_id = create_empty_pool(identity_name, farm)
     wallet = j.clients.stellar.get("work")
     owner_tname = "ranatarek.3bot"
     public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDTwULSsUubOq3VPWL6cdrDvexDmjfznGydFPyaNcn7gAL9lRxwFbCDPMj7MbhNSpxxHV2+/iJPQOTVJu4oc1N7bPP3gBCnF51rPrhTpGCt5pBbTzeyNweanhedkKDsCO2mIEh/92Od5Hg512dX4j7Zw6ipRWYSaepapfyoRnNSriW/s3DH/uewezVtL5EuypMdfNngV/u2KZYWoeiwhrY/yEUykQVUwDysW/xUJNP5o+KSTAvNSJatr3FbuCFuCjBSvageOLHePTeUwu6qjqe+Xs4piF1ByO/6cOJ8bt5Vcx0bAtI8/MPApplUU/JWevsPNApvnA/ntffI+u8DCwgP"
