@@ -1,31 +1,42 @@
 from jumpscale.core.base import Base, fields
 from jumpscale.loader import j
-from jumpscale.clients.explorer.models import (
-    DiskType,
-    K8s,
-    NextAction,
-    PublicIP,
-    WorkloadType,
-    Container
-)
+from jumpscale.clients.explorer.models import DiskType, NextAction, Container
 from enum import Enum
 from jumpscale.sals.reservation_chatflow import DeploymentFailed, deployer, deployment_context, solutions
+from jumpscale.sals.vdc.scheduler import Scheduler, GlobalCapacityChecker, GlobalScheduler
+
 import datetime
 from decimal import Decimal
 import uuid
+from time import sleep
+from collections import defaultdict
+import gevent
 
 # 1. create pool
 # 2. create network
-# 3. create wallet for user 
+# 3. create wallet for user
 # 4. create indentity for the user
 # 5. blockchain ndoes crud
 
 CURRENCIES = ["TFT"]
+
+
+def on_exception(greenlet_thread):
+    """Callback to handle exception raised by service greenlet_thread
+    Arguments:
+        greenlet_thread (Greenlet): greenlet_thread object
+    """
+    message = f"raised an exception: {greenlet_thread.exception}"
+    j.tools.alerthandler.alert_raise(app_name="jukebox", message=message, alert_type="exception")
+    j.logger.error(message)
+
+
 class STATE(Enum):
     CREATING = "CREATING"
     DEPLOYED = "DEPLOYED"
     ERROR = "ERROR"
     EMPTY = "EMPTY"
+
 
 class BlockchainNode(Base):
     deployment_name = fields.String()
@@ -40,12 +51,15 @@ class BlockchainNode(Base):
     state = fields.Enum(STATE)
     # __lock = BoundedSemaphore(1)
 
+
 flist_map = {
     "digibyte": "http",
     "dash": "",
     "matic": "",
     "ubuntu": "https://hub.grid.tf/tf-bootable/3bot-ubuntu-20.04.flist",
 }
+
+
 def create_user_wallet(tname):
     # Create a wallet for the user to be used in extending his pool
     wallet_name = f"jukebox_{tname}"
@@ -67,15 +81,17 @@ def create_user_wallet(tname):
 
         wallet.save()
 
+
 def create_empty_pool(identity_name, farm="freefarm"):
     # create a pool for the user if the pool doesn't exist
     zos = j.sals.zos.get(identity_name)
     if not zos.pools.list():
-        
-        payment_detail = zos.pools.create(cu=0, su=0, ipv4us=0, farm=farm, currencies=CURRENCIES)
-        return payment_details.reservation_id 
+        payment_detail = zos.pools.create(cu=0, su=0, ipv4us=0, farm=farm)
+        return payment_detail.reservation_id
     else:
         return zos.pools.list()[0].pool_id
+
+
 def calculate_payment(payment_info):
     escrow_info = payment_info.escrow_information
     resv_id = payment_info.reservation_id
@@ -89,21 +105,8 @@ def calculate_payment(payment_info):
     return escrow_address, total_amount, escrow_asset
 
 
-def extend_pool(pool_id, cloud_units, farm, identity_name, wallet):
-    zos = j.sals.zos.get(identity_name)
-    node_ids = [node.node_id for node in zos.nodes_finder.nodes_search(farm)]
-    payment_info = zos.pools.extend(pool_id=pool_id, cu=int(cloud_units["cu"]), su=int(cloud_units["su"]), ipv4us=int(cloud_units["ipv4u"]), currencies=CURRENCIES, node_ids=[])
-    # escrow_address, total_amount, escrow_asset = calculate_payment(payment_info)
-    zos.billing.payout_farmers(wallet, payment_info)
-    if not deployer.wait_pool_reservation(payment_info.reservation_id):
-        j.logger.warning(
-            f"pool {pool_id} extension timedout for reservation: {payment_info.reservation_id}"
-        )
-    # wallet.transfer(destination_address=escrow_address, amount=total_amount, asset=escrow_asset)
-
-
 def calculate_required_units(containers, days):
-    cloud_units = {"cu":0, "su":0, "ipv4u": 0}
+    cloud_units = {"cu": 0, "su": 0, "ipv4u": 0}
     for cont in containers:
         cont_units = cont.resource_units().cloud_units()
         cloud_units["cu"] += cont_units.cu
@@ -112,38 +115,55 @@ def calculate_required_units(containers, days):
         cloud_units["su"] *= days * 24 * 60 * 60
     return cloud_units
 
-def create_capacity_pool(wallet, cu=100, su=100, ipv4us=0, farm="freefarm", currencies=None):
-    currencies = currencies or ["TFT"]
-    payment_detail = zos.pools.create(cu=cu, su=su, ipv4us=ipv4us, farm=farm, currencies=currencies)
+
+def get_possible_farms(cru, sru, mru, number_of_deployments):
+    gcc = GlobalCapacityChecker()
+    farm_names = gcc.get_available_farms(
+        cru=cru * number_of_deployments,
+        mru=mru * number_of_deployments,
+        sru=sru * number_of_deployments,
+        ip_version=None,
+        # no_nodes=1,
+    )
+    return farm_names
+
+
+def extend_pool(pool_id, cloud_units, farm, identity_name, wallet):
+    zos = j.sals.zos.get(identity_name)
+    node_ids = [node.node_id for node in zos.nodes_finder.nodes_search(farm)]
+    payment_info = zos.pools.extend(
+        pool_id=pool_id,
+        cu=int(cloud_units["cu"]),
+        su=int(cloud_units["su"]),
+        ipv4us=int(cloud_units["ipv4u"]),
+        node_ids=[],
+    )
+    # escrow_address, total_amount, escrow_asset = calculate_payment(payment_info)
+    zos.billing.payout_farmers(wallet, payment_info)
+    if not deployer.wait_pool_reservation(payment_info.reservation_id):
+        j.logger.warning(f"pool {pool_id} extension timedout for reservation: {payment_info.reservation_id}")
+    # wallet.transfer(destination_address=escrow_address, amount=total_amount, asset=escrow_asset)
+
+
+def create_capacity_pool(wallet, cu=100, su=100, ipv4us=0, farm="freefarm", identity_name=None):
+    zos = j.sals.zos.get(identity_name)
+    payment_detail = zos.pools.create(cu=cu, su=su, ipv4us=ipv4us, farm=farm)
     # wallet = j.clients.stellar.get(wallet)
     txs = zos.billing.payout_farmers(wallet, payment_detail)
     pool = zos.pools.get(payment_detail.reservation_id)
     while pool.cus == 0:
         pool = zos.pools.get(payment_detail.reservation_id)
         sleep(1)
+    # TODO add in QR code with payment total for users
     return payment_detail.reservation_id
 
-def wait_workload(wid):
-    workload = zos.workloads.get(wid)
-    timeout = j.data.time.now().timestamp + 15 * 60 * 60
-    while not workload.info.result.state.value and not workload.info.result.message:
-        if j.data.time.now().timestamp > timeout:
-            raise j.exceptions.Runtime(f"workload {wid} failed to deploy in time")
-        sleep(1)
-        workload = zos.workloads.get(wid)
-    if workload.info.result.state != State.Ok:
-        raise j.exceptions.Runtime(f"workload {wid} failed due to {workload.info.result.message}")
 
-def get_container_ip(network_name, identity_name, node, pool_id, tname):
+def get_container_ip(network_name, identity_name, node, pool_id, tname, excluded_ips=None):
+    excluded_ips = excluded_ips or []
     network_view = deployer.get_network_view(network_name)
     network_view_copy = network_view.copy()
     result = deployer.add_network_node(
-        network_view.name,
-        node,
-        pool_id,
-        network_view_copy,
-        identity_name=identity_name,
-        owner=tname,
+        network_view.name, node, pool_id, network_view_copy, identity_name=identity_name, owner=tname
     )
     if result:
         # self.md_show_update("Deploying Network on Nodes....")
@@ -153,45 +173,22 @@ def get_container_ip(network_name, identity_name, node, pool_id, tname):
                 raise DeploymentFailed(f"Failed to add node {node.node_id} to network {wid}", wid=wid)
         network_view_copy = network_view_copy.copy()
     free_ips = network_view_copy.get_node_free_ips(node)
-    return free_ips[0]
+    for ip in free_ips:
+        if ip not in excluded_ips:
+            return ip
+
     # self.ip_address = self.drop_down_choice(
     #     "Please choose IP Address for your solution", free_ips, default=free_ips[0], required=True,
     # )
+
 
 def create_network(identity_name, pool_id, network_name, ip_range):
     identity = j.core.identity.get(identity_name)
     zos = j.sals.zos.get(identity_name)
     workloads = zos.workloads.list(identity.tid, NextAction.DEPLOY)
-    network = zos.network.load_network(network_name)  
+    network = zos.network.load_network(network_name)
 
     if not network:
-        # used_ip_ranges = set()
-        # existing_nodes = set()
-        # for workload in self.network_workloads:
-        #     used_ip_ranges.add(workload.iprange)
-        #     for peer in workload.peers:
-        #         used_ip_ranges.add(peer.iprange)
-        #     if workload.info.node_id in node_ids:
-        #         existing_nodes.add(workload.info.node_id)
-
-        # if len(existing_nodes) == len(node_ids):
-        #     return
-
-        # node_to_range = {}
-        # node_to_pool = {}
-        # for idx, node_id in enumerate(node_ids):
-        #     if node_id in existing_nodes:
-        #         continue
-        #     node_to_pool[node_id] = pool_ids[idx]
-        #     network_range = netaddr.IPNetwork(self.iprange)
-        #     for _, subnet in enumerate(network_range.subnet(24)):
-        #         subnet = str(subnet)
-        #         if subnet not in used_ip_ranges:
-        #             node_to_range[node_id] = subnet
-        #             used_ip_ranges.add(subnet)
-        #             break
-        #     else:
-        #         raise StopChatFlow("Failed to find free network")
 
         network = zos.network.create(ip_range=ip_range, network_name=network_name)
         nodes = zos.nodes_finder.nodes_by_capacity(pool_id=pool_id)
@@ -203,12 +200,13 @@ def create_network(identity_name, pool_id, network_name, ip_range):
             wid = zos.workloads.deploy(workload)
             wids.append(wid)
         for wid in wids:
-            wait_workload(wid)
+            deployer.wait_workload(wid, identity_name)
         print(wg_quick)
         with open(f"jukebox_{network_name}.conf", "w") as f:
             f.write(wg_quick)
 
     return network
+
 
 def create_blockchain_container(
     blockchain_type,
@@ -223,13 +221,14 @@ def create_blockchain_container(
     disk_size=256,
     disk_type=DiskType.SSD,
     entrypoint="",
-    interactive=False, 
+    interactive=False,
     secret_env=None,
     volumes=None,
     log_config=None,
     public_ipv6=False,
     description="",
-    **metadata, ):
+    **metadata,
+):
     # Create a new container using a blockchain flist
     flist = flist_map.get(blockchain_type)
     if not flist:
@@ -267,49 +266,69 @@ def create_blockchain_container(
         j.sals.zos.get(identity_name).container.add_logs(container, **log_config)
     return j.sals.zos.get(identity_name).workloads.deploy(container)
 
-    
 
-def start(identity_name):
-    farm_id = 1
-    pool_id = create_empty_pool(identity_name)
-    print(f"***************{pool_id}****************")
-    network_name = "my_network"
-    create_network(identity_name, pool_id, network_name, "10.100.0.0/16")
-    zos = j.sals.zos.get(identity_name)
-    cont = Container()
-    cont.capacity.cpu = 1
-    cont.capacity.memory = 1024
-    cont.capacity.disk_size = 1024
-    cont.capacity.disk_type = DiskType.SSD
-    cloud_units = calculate_required_units([cont], days=1)
-    wallet = j.clients.stellar.get("work")
-    extend_pool(pool_id, cloud_units, farm_id, identity_name, wallet)
+def deploy_all_containers(
+    farm_name,
+    number_of_deployments,
+    network_name,
+    cru,
+    sru,
+    mru,
+    pool_ids,
+    identity_name,
+    owner_tname,
+    blockchain_type,
+    env=None,
+    metadata=None,
+):
+    metadata = metadata or {}
+    env = env or {}
 
-    # getting node_id 
-    nodes = j.sals.zos.get().nodes_finder.nodes_by_capacity(pool_id=pool_id, cru=cont.capacity.cpu, sru=cont.capacity.disk_size/1024, mru=cont.capacity.memory/1024, hru=0)
-    nodes = list(nodes)
-    if not nodes:
-        raise Exception("No nodes available")
-    # nodes_ids = [node.node_id for node in nodes]
-    metadata = {
-            "name": "test_ubuntu",
-            "form_info": {"chatflow": "jukebox", "Solution name": "test_ubuntu"},
-        }
-    ip_address = get_container_ip(network_name, identity_name, nodes[0], pool_id, "ashraf.3bot")
-    flist = flist_map.get("ubuntu")
+    used_ip_addresses = defaultdict(lambda: [])  # {node_id:[ip_addresses]}
+    # TODO when using multiple farms use GlobalScheduler instead and pass farm_name when deploying
+    scheduler = Scheduler(farm_name=farm_name)
+    deployment_threads = []
+    for i in range(number_of_deployments):
+        # for each node check how many containers can be deployed on it, and based on that assign that node for X deployments
+        pool_id = pool_ids[0]  # TODO
+        node = next(scheduler.nodes_by_capacity(cru=cru, sru=sru, mru=mru))
+
+        excluded_ips = used_ip_addresses.get(node.node_id, [])
+        ip_address = get_container_ip(network_name, identity_name, node, pool_id, owner_tname, excluded_ips)
+
+        used_ip_addresses[node.node_id].append(ip_address)
+
+        # START SPAWN
+
+        thread = gevent.spawn(
+            deploy_container, network_name, identity_name, node, pool_id, ip_address, blockchain_type, env, metadata
+        )
+        thread.link_exception(on_exception)
+        deployment_threads.append(thread)
+        # END SPAWN
+    # TODO check resv ids success/failure, if resv failed retry on same node
+    gevent.joinall(deployment_threads)
+
+
+def deploy_container(
+    network_name, identity_name, node, pool_id, ip_address, blockchain_type="ubuntu", env=None, metadata=None
+):
+    metadata = metadata or {}
+    env = env or {}
+
+    flist = flist_map.get(blockchain_type)
     if not flist:
         raise Exception(f"Flist for {blockchain_type} not found")
-    public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDTwULSsUubOq3VPWL6cdrDvexDmjfznGydFPyaNcn7gAL9lRxwFbCDPMj7MbhNSpxxHV2+/iJPQOTVJu4oc1N7bPP3gBCnF51rPrhTpGCt5pBbTzeyNweanhedkKDsCO2mIEh/92Od5Hg512dX4j7Zw6ipRWYSaepapfyoRnNSriW/s3DH/uewezVtL5EuypMdfNngV/u2KZYWoeiwhrY/yEUykQVUwDysW/xUJNP5o+KSTAvNSJatr3FbuCFuCjBSvageOLHePTeUwu6qjqe+Xs4piF1ByO/6cOJ8bt5Vcx0bAtI8/MPApplUU/JWevsPNApvnA/ntffI+u8DCwgP"
     resv_id = deployer.deploy_container(
         pool_id=pool_id,
-        node_id=nodes[0].node_id,
+        node_id=node.node_id,
         network_name=network_name,
         ip_address=ip_address,
         flist=flist,
         cpu=1,
         memory=1024,
         disk_size=512,
-        env={"pub_key": public_key},
+        env=env,
         interactive=False,
         entrypoint="/bin/bash /start.sh",
         # log_config=self.log_config,
@@ -321,10 +340,67 @@ def start(identity_name):
     if not success:
         raise DeploymentFailed(f"Failed to deploy workload {resv_id}", wid=resv_id)
     print(f"succeeded, {resv_id}")
-    # create_blockchain_container("ubuntu", pool_id, nodes[0].node_id, network_name, ip, **metadata)
-    
+    return resv_id
 
 
+def start(identity_name, number_of_deployments=2):
 
-    
+    farm_id = 1
+    pool_id = create_empty_pool(identity_name)
+    wallet = j.clients.stellar.get("work")
+    owner_tname = "ranatarek.3bot"
+    public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDTwULSsUubOq3VPWL6cdrDvexDmjfznGydFPyaNcn7gAL9lRxwFbCDPMj7MbhNSpxxHV2+/iJPQOTVJu4oc1N7bPP3gBCnF51rPrhTpGCt5pBbTzeyNweanhedkKDsCO2mIEh/92Od5Hg512dX4j7Zw6ipRWYSaepapfyoRnNSriW/s3DH/uewezVtL5EuypMdfNngV/u2KZYWoeiwhrY/yEUykQVUwDysW/xUJNP5o+KSTAvNSJatr3FbuCFuCjBSvageOLHePTeUwu6qjqe+Xs4piF1ByO/6cOJ8bt5Vcx0bAtI8/MPApplUU/JWevsPNApvnA/ntffI+u8DCwgP"
+    env = {"pub_key": public_key}
+    blockchain_type = "ubuntu"
+
+    metadata = {"name": "test_ubuntu", "form_info": {"chatflow": "jukebox", "Solution name": "test_ubuntu"}}
+
+    print(f"***************Empty pool: {pool_id}****************")
+    network_name = "my_network"
+    create_network(identity_name, pool_id, network_name, "10.100.0.0/16")
+    zos = j.sals.zos.get(identity_name)
+
+    query = {"cru": 1, "sru": 1, "mru": 1}
+    duration_days = 1
+
+    # Check the farms that will have enough resources for the deployment (the user will choose one from it)
+    farm_names = get_possible_farms(query["cru"], query["sru"], query["mru"], number_of_deployments)
+    farm_user_choice = next(farm_names)  # TODO to be adjusted so user can choose multiple farms to distribute nodes on
+
+    # Calculate required units from query
+    cont = Container()
+    cont.capacity.cpu = query["cru"] * 1
+    cont.capacity.memory = query["mru"] * 1024
+    cont.capacity.disk_size = query["sru"] * 1024
+    cont.capacity.disk_type = DiskType.SSD
+    cloud_units = calculate_required_units([cont], days=duration_days)
+
+    # TODO to be done for all farms to have a list of pool_ids, the following is per one farm
+    pool_rev_id = create_capacity_pool(
+        wallet,
+        cu=cloud_units["cu"] * number_of_deployments,
+        su=cloud_units["su"] * number_of_deployments,
+        ipv4us=0,
+        farm=farm_user_choice,
+    )
+    pool_ids = [pool_rev_id]
+
+    # Get possible nodes,ip_addresses then spawn deployment of container in gevent
+    deploy_all_containers(
+        farm_user_choice,
+        number_of_deployments,
+        network_name,
+        query["cru"],
+        query["sru"],
+        query["mru"],
+        pool_ids,
+        identity_name,
+        owner_tname,
+        blockchain_type,
+        env,
+        metadata,
+    )
+
+
+# create_blockchain_container("ubuntu", pool_id, nodes[0].node_id, network_name, ip, **metadata)
 
