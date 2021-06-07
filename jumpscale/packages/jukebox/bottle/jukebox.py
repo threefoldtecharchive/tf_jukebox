@@ -16,7 +16,7 @@ app = Bottle()
 
 THREEFOLD_LOGIN_URL = "https://login.threefold.me/api"
 
-IDENTITY_PREFIX = "JUKEBOX"
+IDENTITY_PREFIX = "jukebox"
 
 
 @app.route("/api/status", method="GET")
@@ -69,6 +69,19 @@ def remove_admin() -> str:
     threebot.packages.save()
 
 
+def create_intermediate_identity(tname, email, explorer_url):
+
+    prefixed_tname = f"{IDENTITY_PREFIX}_{j.data.text.removesuffix(tname, '.3bot')}"
+    suffixed_email = email.replace("@", "_jukebox@")
+    identity = j.core.identity.find(prefixed_tname)
+    if not identity:
+        identity = j.core.identity.new(
+            name=prefixed_tname, tname=prefixed_tname, email=suffixed_email, explorer_url=explorer_url
+        )
+        identity.register()
+        identity.save()
+
+
 @app.route("/api/accept", method="GET")
 @login_required
 def accept():
@@ -90,8 +103,8 @@ def accept():
             status=500,
             headers={"Content-Type": "application/json"},
         )
-
-    user_entry = user_factory.get(f"{IDENTITY_PREFIX}_{explorer_name}_{tname.replace('.3bot', '')}")
+    user_entry_name = f"{IDENTITY_PREFIX}_{tname.replace('.3bot', '')}"
+    user_entry = user_factory.get(user_entry_name)
     if user_entry.has_agreed:
         return HTTPResponse(
             j.data.serializers.json.dumps({"allowed": True}), status=200, headers={"Content-Type": "application/json"}
@@ -101,6 +114,8 @@ def accept():
         user_entry.explorer_url = explorer_url
         user_entry.tname = tname
         user_entry.save()
+
+        create_intermediate_identity(tname=tname, email=user_info["email"], explorer_url=explorer_url)
         return HTTPResponse(
             j.data.serializers.json.dumps({"allowed": True}), status=201, headers={"Content-Type": "application/json"}
         )
@@ -117,6 +132,9 @@ def allowed():
     for name in instances:
         user_entry = user_factory.get(name)
         if user_entry.tname == tname and user_entry.explorer_url == explorer_url and user_entry.has_agreed:
+            create_intermediate_identity(
+                tname=tname, email=user_info["email"], explorer_url=explorer_url
+            )  # check if not created, then add
             return j.data.serializers.json.dumps({"allowed": True})
     return j.data.serializers.json.dumps({"allowed": False})
 
