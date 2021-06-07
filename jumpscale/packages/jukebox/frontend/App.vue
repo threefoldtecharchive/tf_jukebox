@@ -3,7 +3,7 @@
     <v-app-bar app>
       <router-link to="/" style="text-decoration: none;">
         <v-row>
-          <img class="ml-2" src="./assets/jukebox_logo.png" height="30" />
+          <img class="ml-2" src="./assets/jukebox_logo.png" height="80" width="100" />
         </v-row>
       </router-link>
       <v-spacer></v-spacer>
