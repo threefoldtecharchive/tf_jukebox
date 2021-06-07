@@ -1,10 +1,12 @@
-from jumpscale.loader import j
-from jumpscale.sals.chatflows.chatflows import GedisChatBot, StopChatFlow, chatflow_step
-from jumpscale.packages.jukebox.sals import jukebox
-from jumpscale.sals.marketplace.apps_chatflow import MarketPlaceAppsChatflow
 import random
 from textwrap import dedent
 
+from jumpscale.clients.stellar import TRANSACTION_FEES
+from jumpscale.loader import j
+from jumpscale.sals.chatflows.chatflows import GedisChatBot, StopChatFlow, chatflow_step
+from jumpscale.sals.marketplace.apps_chatflow import MarketPlaceAppsChatflow
+
+from jumpscale.packages.jukebox.sals import jukebox
 
 IDENTITY_PREFIX = "jukebox"
 
@@ -96,9 +98,9 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
             farm_name=self.farm,
         )
 
-        payment_success, _, payment_id = jukebox.show_payment(
+        payment_success, _, self.payment_id = jukebox.show_payment(
             bot=self,
-            cost=calculated_cost_per_cont * self.nodes_count,
+            cost=calculated_cost_per_cont * self.nodes_count + TRANSACTION_FEES,
             wallet_name=self.wallet.instance_name,
             expiry=5,
             description=j.data.serializers.json.dumps({"type": "jukebox", "owner": self.owner_tname}),
@@ -134,39 +136,45 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         )
 
         # TODO to be done for all farms to have a list of pool_ids, the following is per one farm
-        pool_rev_id = jukebox.create_capacity_pool(
-            self.wallet,
-            cu=cloud_units["cu"],
-            su=cloud_units["su"],
-            ipv4us=0,
-            farm=self.farm,
-            identity_name=self.identity_name,
-        )
-        pool_ids = [pool_rev_id]
-        self.network_name = f"jukebox_{self.owner_tname}_{pool_rev_id}"
+        try:
+            pool_rev_id = jukebox.create_capacity_pool(
+                self.wallet,
+                cu=cloud_units["cu"],
+                su=cloud_units["su"],
+                ipv4us=0,
+                farm=self.farm,
+                identity_name=self.identity_name,
+            )
 
-        self.md_show_update("Deploying network...")
-        # Create network
-        jukebox.deploy_network(
-            self.identity_name, pool_rev_id, network_name=self.network_name, owner_tname=self.identity_name
-        )
+            pool_ids = [pool_rev_id]
+            self.network_name = f"jukebox_{self.owner_tname}_{pool_rev_id}"
 
-        # Get possible nodes,ip_addresses then spawn deployment of container in gevent
-        self.md_show_update("Deploying containers...")
-        jukebox.deploy_all_containers(
-            farm_name=self.farm,
-            number_of_deployments=self.nodes_count,
-            network_name=self.network_name,
-            cru=self.QUERY["cru"],
-            sru=self.QUERY["sru"],
-            mru=self.QUERY["mru"],
-            pool_ids=pool_ids,
-            identity_name=self.identity_name,
-            owner_tname=self.identity_name,
-            blockchain_type=self.SOLUTION_TYPE,
-            env=self.env,
-            metadata=self.metadata,
-        )
+            self.md_show_update("Deploying network...")
+            # Create network
+            jukebox.deploy_network(
+                self.identity_name, pool_rev_id, network_name=self.network_name, owner_tname=self.identity_name
+            )
+
+            # Get possible nodes,ip_addresses then spawn deployment of container in gevent
+            self.md_show_update("Deploying containers...")
+            jukebox.deploy_all_containers(
+                farm_name=self.farm,
+                number_of_deployments=self.nodes_count,
+                network_name=self.network_name,
+                cru=self.QUERY["cru"],
+                sru=self.QUERY["sru"],
+                mru=self.QUERY["mru"],
+                pool_ids=pool_ids,
+                identity_name=self.identity_name,
+                owner_tname=self.identity_name,
+                blockchain_type=self.SOLUTION_TYPE,
+                env=self.env,
+                metadata=self.metadata,
+            )
+        except Exception as e:
+            j.logger.error(f"Failed to deploy", exception=e)
+            j.sals.billing.issue_refund(self.payment_id)
+            self.stop("Failed to deploy")
 
     @chatflow_step(title="Success", disable_previous=True, final_step=True)
     def success(self):
@@ -176,4 +184,3 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         <br />\n
         """
         self.md_show(dedent(message), md=True)
-

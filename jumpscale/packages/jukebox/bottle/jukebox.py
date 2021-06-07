@@ -71,7 +71,7 @@ def remove_admin() -> str:
 
 def create_intermediate_identity(tname, email, explorer_url):
 
-    prefixed_tname = f"{IDENTITY_PREFIX}_{tname.replace('.3bot', '')}"
+    prefixed_tname = f"{IDENTITY_PREFIX}_{j.data.text.removesuffix(tname, '.3bot')}"
     suffixed_email = email.replace("@", "_jukebox@")
     identity = j.core.identity.find(prefixed_tname)
     if not identity:

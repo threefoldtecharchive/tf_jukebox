@@ -1,15 +1,31 @@
-from jumpscale.core.base import Base, fields
-from jumpscale.loader import j
-from jumpscale.clients.explorer.models import DiskType, NextAction, Container
-from enum import Enum
-from jumpscale.sals.reservation_chatflow import DeploymentFailed, deployer, deployment_context, solutions
-from jumpscale.sals.vdc.scheduler import Scheduler, GlobalCapacityChecker, GlobalScheduler
+from collections import defaultdict
 import datetime
 from decimal import Decimal
-import uuid
+from enum import Enum
 from time import sleep
-from collections import defaultdict
+import uuid
+
 import gevent
+from jumpscale.clients.explorer.models import (
+    Container,
+    DiskType,
+    NextAction,
+    WorkloadType,
+)
+from jumpscale.core.base import Base, fields
+from jumpscale.loader import j
+from jumpscale.sals.reservation_chatflow import (
+    DeploymentFailed,
+    deployer,
+    deployment_context,
+    solutions,
+)
+
+from jumpscale.sals.vdc.scheduler import (
+    GlobalCapacityChecker,
+    GlobalScheduler,
+    Scheduler,
+)
 
 # 1. create pool
 # 2. create network
@@ -18,6 +34,7 @@ import gevent
 # 5. blockchain ndoes crud
 
 CURRENCIES = ["TFT"]
+IDENTITY_PREFIX = "jukebox"
 
 
 def on_exception(greenlet_thread):
@@ -485,3 +502,36 @@ def start(identity_name, number_of_deployments=2):
 
 # create_blockchain_container("ubuntu", pool_id, nodes[0].node_id, network_name, ip, **metadata)
 
+
+def _filter_deployments(workloads, identity_name, solution_type=None):
+    deployments = defaultdict(lambda: {})
+    for workload in workloads:
+        if workload.info.workload_type == WorkloadType.Container:
+            metadata = j.sals.reservation_chatflow.deployer.decrypt_metadata(workload.info.metadata, identity_name)
+            try:
+                metadata_dict = j.data.serializers.json.loads(metadata)
+            except Exception as e:
+                continue
+            if not metadata_dict.get("form_info"):
+                continue
+            form_info = metadata_dict["form_info"]
+            workload_solution_type = form_info["chatflow"]
+            name = form_info["Solution name"]
+            if (solution_type and solution_type == workload_solution_type) or not solution_type:
+                if name not in deployments[workload_solution_type]:
+                    deployments[workload_solution_type][name] = {"metadata": form_info, "workloads": []}
+                deployments[workload_solution_type][name]["workloads"].append(workload.to_dict())
+
+    return deployments
+
+
+# listing
+def list_deployments(identity_name, solution_type=None):
+    identity_name = j.data.text.removesuffix(identity_name, ".3bot")
+    identity = j.core.identity.find(identity_name)
+    if not identity:
+        return []
+
+    zos = j.sals.zos.get(identity_name)
+    workloads = zos.workloads.list_workloads(identity.tid, NextAction.DEPLOY)
+    return _filter_deployments(workloads, identity_name, solution_type)
