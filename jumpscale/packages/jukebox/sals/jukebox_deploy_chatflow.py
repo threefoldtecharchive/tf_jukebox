@@ -166,6 +166,5 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         message = f"""\
         # You deployed {self.nodes_count} nodes of {self.SOLUTION_TYPE}
         <br />\n
-        {self.wg_quick}
         """
         self.md_show(dedent(message), md=True)
