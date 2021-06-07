@@ -294,7 +294,7 @@ def deploy_container(
 
 
 def _filter_deployments(workloads, identity_name, solution_type=None):
-    deployments = defaultdict(lambda: {})
+    deployments = defaultdict(lambda: [])
     for workload in workloads:
         if workload.info.workload_type == WorkloadType.Container:
             metadata = j.sals.reservation_chatflow.deployer.decrypt_metadata(workload.info.metadata, identity_name)
@@ -308,9 +308,14 @@ def _filter_deployments(workloads, identity_name, solution_type=None):
             workload_solution_type = form_info["chatflow"]
             name = form_info["Solution name"]
             if (solution_type and solution_type == workload_solution_type) or not solution_type:
-                if name not in deployments[workload_solution_type]:
-                    deployments[workload_solution_type][name] = {"metadata": form_info, "workloads": []}
-                deployments[workload_solution_type][name]["workloads"].append(workload.to_dict())
+                for deployment in deployments[workload_solution_type]:
+                    if name == deployment["name"]:
+                        deployment["workloads"].append(workload.to_dict())
+                        break
+                else:
+                    deployments[workload_solution_type].append(
+                        {"name": name, "metadata": form_info, "workloads": [workload]}
+                    )
 
     return deployments
 
@@ -320,7 +325,7 @@ def list_deployments(identity_name, solution_type=None):
     identity_name = j.data.text.removesuffix(identity_name, ".3bot")
     identity = j.core.identity.find(identity_name)
     if not identity:
-        return []
+        return {}
 
     zos = j.sals.zos.get(identity_name)
     workloads = zos.workloads.list_workloads(identity.tid, NextAction.DEPLOY)
