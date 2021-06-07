@@ -314,7 +314,7 @@ def _filter_deployments(workloads, identity_name, solution_type=None):
                         break
                 else:
                     deployments[workload_solution_type].append(
-                        {"name": name, "metadata": form_info, "workloads": [workload]}
+                        {"name": name, "metadata": form_info, "workloads": [workload.to_dict()]}
                     )
 
     return deployments
