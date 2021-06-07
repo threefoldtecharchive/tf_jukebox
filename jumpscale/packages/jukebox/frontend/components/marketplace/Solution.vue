@@ -79,12 +79,13 @@ module.exports = {
         cancelSolution: false,
       },
       headers: [
-        { text: "Release", value: "Release" },
-        { text: "URL", value: "domain" },
-        { text: "Version", value: "Version" },
-        { text: "Namespace", value: "Namespace" },
-        { text: "Status", value: "Status" },
-        { text: "Creation Time", value: "Creation" },
+        { text: "Id", value: "id" },
+        { text: "Deployment name", value: "name" },
+        { text: "IP address", value: "ip" },
+        { text: "Cpu", value: "cpu" },
+        { text: "Memory /MB", value: "memory" },
+        { text: "Disk Size /MB", value: "disk" },
+        { text: "Creation Time", value: "creation" },
         { text: "Actions", value: "actions", sortable: false },
       ],
       deployedSolutions: [],
@@ -148,6 +149,17 @@ module.exports = {
           .getSolutions(solution_type)
           .then((response) => {
             this.deployedSolutions = response.data.data;
+            for (let i = 0; i < this.deployedSolutions.length; i++) {
+              let deployment = this.deployedSolutions[i];
+              deployment["id"] = deployment.workload.id
+              deployment["ip"] = deployment.workload.network_connection[0].ipaddress
+              deployment["cpu"] = deployment.workload.capacity.cpu
+              deployment["memory"] = deployment.workload.capacity.memory
+              deployment["disk"] = deployment.workload.capacity.disk_size
+              deployment["creation"] = new Date(deployment.workload.info.epoch* 1000).toLocaleString("en-GB");
+
+              }
+
           })
           .finally(() => {
             this.loading = false;

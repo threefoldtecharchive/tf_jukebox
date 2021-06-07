@@ -11,6 +11,7 @@ from jumpscale.core.base import StoredFactory
 from jumpscale.packages.auth.bottle.auth import authenticated, get_user_info, login_required, package_authorized
 
 from jumpscale.packages.jukebox.bottle.models import UserEntry
+from jumpscale.packages.jukebox.sals import jukebox
 
 app = Bottle()
 
@@ -142,10 +143,21 @@ def allowed():
 @app.route("/api/deployments/<solution_type>", method="GET")
 @package_authorized("jukebox")
 def list_deployments(solution_type: str) -> str:
-    # TODO
     user_info = j.data.serializers.json.loads(get_user_info())
-    loggedin_tname = user_info["username"]
-    return j.data.serializers.json.dumps({"data": {}})
+    tname = user_info["username"]
+    prefixed_tname = f"{IDENTITY_PREFIX}_{tname.replace('.3bot', '')}"
+    deployments = jukebox.list_deployments(prefixed_tname, solution_type)[solution_type]
+
+    workloads = []
+    # flatten all workloads with same deployment name
+    for deployment in deployments:
+        metadata = deployment["metadata"]
+        deployment_name = deployment["name"]
+        for workload in deployment["workloads"]:
+            flattened_workload = {"name": deployment_name, "metadata": metadata, "workload": workload}
+            workloads.append(flattened_workload)
+
+    return j.data.serializers.json.dumps({"data": workloads})
 
 
 @app.route("/api/deployments", method="POST")
