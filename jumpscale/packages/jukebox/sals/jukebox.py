@@ -6,26 +6,12 @@ from time import sleep
 import uuid
 
 import gevent
-from jumpscale.clients.explorer.models import (
-    Container,
-    DiskType,
-    NextAction,
-    WorkloadType,
-)
+from jumpscale.clients.explorer.models import Container, DiskType, NextAction, WorkloadType
 from jumpscale.core.base import Base, fields
 from jumpscale.loader import j
-from jumpscale.sals.reservation_chatflow import (
-    DeploymentFailed,
-    deployer,
-    deployment_context,
-    solutions,
-)
+from jumpscale.sals.reservation_chatflow import DeploymentFailed, deployer, deployment_context, solutions
 
-from jumpscale.sals.vdc.scheduler import (
-    GlobalCapacityChecker,
-    GlobalScheduler,
-    Scheduler,
-)
+from jumpscale.sals.vdc.scheduler import GlobalCapacityChecker, GlobalScheduler, Scheduler
 
 # 1. create pool
 # 2. create network
@@ -45,27 +31,6 @@ def on_exception(greenlet_thread):
     message = f"raised an exception: {greenlet_thread.exception}"
     j.tools.alerthandler.alert_raise(app_name="jukebox", message=message, alert_type="exception")
     j.logger.error(message)
-
-
-class STATE(Enum):
-    CREATING = "CREATING"
-    DEPLOYED = "DEPLOYED"
-    ERROR = "ERROR"
-    EMPTY = "EMPTY"
-
-
-class BlockchainNode(Base):
-    deployment_name = fields.String()
-    owner_tname = fields.String()
-    solution_uuid = fields.String(default=lambda: uuid.uuid4().hex)
-    identity_tid = fields.Integer()
-    created = fields.DateTime(default=datetime.datetime.utcnow)
-    expiration = fields.Float(default=lambda: j.data.time.utcnow().timestamp + 30 * 24 * 60 * 60)
-    last_updated = fields.DateTime(default=datetime.datetime.utcnow)
-    is_blocked = fields.Boolean(default=False)  # grace period action is applied
-    explorer_url = fields.String(default=lambda: j.core.identity.me.explorer_url)
-    state = fields.Enum(STATE)
-    # __lock = BoundedSemaphore(1)
 
 
 flist_map = {
@@ -183,23 +148,6 @@ def show_payment(bot, cost, wallet_name, expiry=5, description=None):
         return True, cost, payment_id
 
 
-# def extend_pool(pool_id, cloud_units, farm, identity_name, wallet):
-#     zos = j.sals.zos.get(identity_name)
-#     node_ids = [node.node_id for node in zos.nodes_finder.nodes_search(farm)]
-#     payment_info = zos.pools.extend(
-#         pool_id=pool_id,
-#         cu=int(cloud_units["cu"]),
-#         su=int(cloud_units["su"]),
-#         ipv4us=int(cloud_units["ipv4u"]),
-#         node_ids=[],
-#     )
-#     # escrow_address, total_amount, escrow_asset = calculate_payment(payment_info)
-#     zos.billing.payout_farmers(wallet, payment_info)
-#     if not deployer.wait_pool_reservation(payment_info.reservation_id):
-#         j.logger.warning(f"pool {pool_id} extension timedout for reservation: {payment_info.reservation_id}")
-#     # wallet.transfer(destination_address=escrow_address, amount=total_amount, asset=escrow_asset)
-
-
 def create_capacity_pool(wallet, cu=100, su=100, ipv4us=0, farm="freefarm", identity_name=None):
     zos = j.sals.zos.get(identity_name)
     payment_detail = zos.pools.create(cu=cu, su=su, ipv4us=ipv4us, farm=farm)
@@ -231,37 +179,6 @@ def get_container_ip(network_name, identity_name, node, pool_id, tname, excluded
     for ip in free_ips:
         if ip not in excluded_ips:
             return ip
-
-    # self.ip_address = self.drop_down_choice(
-    #     "Please choose IP Address for your solution", free_ips, default=free_ips[0], required=True,
-    # )
-
-
-# def create_network(identity_name, pool_id, network_name, ip_range=None):
-#     ip_range = ip_range or get_network_ip_range()
-#     identity = j.core.identity.get(identity_name)
-#     zos = j.sals.zos.get(identity_name)
-#     workloads = zos.workloads.list(identity.tid, NextAction.DEPLOY)
-#     network = zos.network.load_network(network_name)
-
-#     if not network:
-
-#         network = zos.network.create(ip_range=ip_range, network_name=network_name)
-#         nodes = zos.nodes_finder.nodes_by_capacity(pool_id=pool_id)
-#         access_node = list(filter(zos.nodes_finder.filter_public_ip4, nodes))[0]
-#         zos.network.add_node(network, access_node.node_id, "10.100.0.0/24", pool_id)
-#         wg_quick = zos.network.add_access(network, access_node.node_id, "10.100.1.0/24", ipv4=True)
-#         wids = []
-#         for workload in network.network_resources:
-#             wid = zos.workloads.deploy(workload)
-#             wids.append(wid)
-#         for wid in wids:
-#             deployer.wait_workload(wid, identity_name)
-#         print(wg_quick)
-#         with open(f"jukebox_{network_name}.conf", "w") as f:
-#             f.write(wg_quick)
-
-#     return network
 
 
 def deploy_network(identity_name, pool_id, network_name, owner_tname, ip_range=None):
@@ -297,65 +214,6 @@ def deploy_network(identity_name, pool_id, network_name, owner_tname, ip_range=N
             j.sals.fs.mkdirs(f"{j.core.dirs.CFGDIR}/jukebox/wireguard/{owner_tname}")
             j.sals.fs.write_file(f"{j.core.dirs.CFGDIR}/jukebox/wireguard/{owner_tname}/{network_name}.conf", wg_quick)
             return True, wg_quick
-
-
-def create_blockchain_container(
-    blockchain_type,
-    pool_id,
-    node_id,
-    network_name,
-    ip_address,
-    env=None,
-    cpu=1,
-    identity_name=None,
-    memory=1024,
-    disk_size=256,
-    disk_type=DiskType.SSD,
-    entrypoint="",
-    interactive=False,
-    secret_env=None,
-    volumes=None,
-    log_config=None,
-    public_ipv6=False,
-    description="",
-    **metadata,
-):
-    # Create a new container using a blockchain flist
-    flist = flist_map.get(blockchain_type)
-    if not flist:
-        raise Exception(f"Flist for {blockchain_type} not found")
-    env = env or {}
-    encrypted_secret_env = {}
-    if secret_env:
-        for key, val in secret_env.items():
-            val = val or ""
-            encrypted_secret_env[key] = j.sals.zos.get(identity_name).container.encrypt_secret(node_id, val)
-    for key, val in env.items():
-        env[key] = val or ""
-    container = j.sals.zos.get(identity_name).container.create(
-        node_id,
-        network_name,
-        ip_address,
-        flist,
-        pool_id,
-        env,
-        cpu,
-        memory,
-        disk_size,
-        entrypoint,
-        interactive,
-        encrypted_secret_env,
-        public_ipv6=public_ipv6,
-    )
-    if volumes:
-        for mount_point, vol_id in volumes.items():
-            j.sals.zos.get(identity_name).volume.attach_existing(container, f"{vol_id}-1", mount_point)
-    if metadata:
-        container.info.metadata = deployer.encrypt_metadata(metadata, identity_name=identity_name)
-        container.info.description = description
-    if log_config:
-        j.sals.zos.get(identity_name).container.add_logs(container, **log_config)
-    return j.sals.zos.get(identity_name).workloads.deploy(container)
 
 
 def deploy_all_containers(

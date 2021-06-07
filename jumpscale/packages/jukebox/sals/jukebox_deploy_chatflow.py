@@ -87,7 +87,6 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
 
     @chatflow_step(title="Payment")
     def payment(self):
-        # self.md_show_update("Extending pool...")
         self.currencies = ["TFT"]
 
         calculated_cost_per_cont = jukebox.calculate_payment_from_container_resources(
@@ -108,22 +107,8 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         if not payment_success:
             self.stop(f"Payment timedout. Please restart.")
 
-        # self.pool_info, self.qr_code = deployer.extend_solution_pool(
-        #     self, self.pool_id, self.expiration, self.currencies, **self.query
-        # )
-        # if self.pool_info and self.qr_code:
-        #     # cru = 1 so cus will be = 0
-        #     result = deployer.wait_pool_reservation(self.pool_info.reservation_id, qr_code=self.qr_code, bot=self)
-        #     if not result:
-        #         raise StopChatFlow(f"Waiting for pool payment timedout. pool_id: {self.pool_id}")
-
     @chatflow_step(title="Deployment")
     def deploy(self):
-        # pool_id = jukebox.create_empty_pool(self.identity_name, self.farm.value)
-        # self.SOLUTION_TYPE = "ubuntu"
-        # self.env = {"pub_key": self.spublic_key}
-        # self.metadata = {"name": "test_ubuntu", "form_info": {"chatflow": "jukebox", "Solution name": "test_node"}}
-
         # extend_pool
         self.md_show_update("Creating pool...")
         # Calculate required units from query
@@ -151,7 +136,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
 
             self.md_show_update("Deploying network...")
             # Create network
-            jukebox.deploy_network(
+            _, self.wg_quick = jukebox.deploy_network(
                 self.identity_name, pool_rev_id, network_name=self.network_name, owner_tname=self.identity_name
             )
 
@@ -178,9 +163,9 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
 
     @chatflow_step(title="Success", disable_previous=True, final_step=True)
     def success(self):
-        # display_name = self.solution_name.replace(f"{self.solution_metadata['owner']}-", "")
         message = f"""\
         # You deployed {self.nodes_count} nodes of {self.SOLUTION_TYPE}
         <br />\n
+        {self.wg_quick}
         """
         self.md_show(dedent(message), md=True)
