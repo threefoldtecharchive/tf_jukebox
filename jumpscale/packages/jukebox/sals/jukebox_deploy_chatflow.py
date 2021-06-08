@@ -182,6 +182,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
             blockchain_type=self.SOLUTION_TYPE,
             env=self.env,
             metadata=self.metadata,
+            flist=self.FLIST,
         )
 
     @chatflow_step(title="Success", disable_previous=True, final_step=True)

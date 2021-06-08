@@ -33,12 +33,13 @@ def on_exception(greenlet_thread):
     j.logger.error(message)
 
 
-flist_map = {
-    "digibyte": {"flist": "http"},
-    "dash": "",
-    "matic": "",
-    "ubuntu": "https://hub.grid.tf/tf-bootable/3bot-ubuntu-20.04.flist",
-}
+# flist_map = {
+#     "digibyte": {"flist": "http"},
+#     "dash": "",
+#     "matic": "",
+#     "ubuntu": "https://hub.grid.tf/tf-bootable/3bot-ubuntu-20.04.flist",
+#     "presearch": "https://hub.grid.tf/waleedhammam.3bot/arrajput-presearch-latest.flist",
+# }
 
 
 def get_or_create_user_wallet(wallet_name):
@@ -229,6 +230,7 @@ def deploy_all_containers(
     blockchain_type,
     env=None,
     metadata=None,
+    flist=None,
 ):
     metadata = metadata or {}
     env = env or {}
@@ -250,7 +252,16 @@ def deploy_all_containers(
         # START SPAWN
 
         thread = gevent.spawn(
-            deploy_container, network_name, identity_name, node, pool_id, ip_address, blockchain_type, env, metadata
+            deploy_container,
+            network_name,
+            identity_name,
+            node,
+            pool_id,
+            ip_address,
+            blockchain_type,
+            env,
+            metadata,
+            flist,
         )
         thread.link_exception(on_exception)
         deployment_threads.append(thread)
@@ -260,14 +271,22 @@ def deploy_all_containers(
 
 
 def deploy_container(
-    network_name, identity_name, node, pool_id, ip_address, blockchain_type="ubuntu", env=None, metadata=None
+    network_name,
+    identity_name,
+    node,
+    pool_id,
+    ip_address,
+    blockchain_type="ubuntu",
+    env=None,
+    metadata=None,
+    flist=None,
 ):
     metadata = metadata or {}
     env = env or {}
 
-    flist = flist_map.get(blockchain_type)
     if not flist:
-        raise Exception(f"Flist for {blockchain_type} not found")
+        raise Exception(f"Flist for {blockchain_type} not found, Please pass it")
+
     resv_id = deployer.deploy_container(
         identity_name=identity_name,
         pool_id=pool_id,
