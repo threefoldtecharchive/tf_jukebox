@@ -59,7 +59,17 @@ class MonitorDeployments(BackgroundService):
         pool_info = zos.pools.extend(pool_id, cu=needed_cu, su=needed_su, ipv4us=0)
         wallet = j.clients.stellar.find(identity_name)
         if not wallet:
-            j.logger.critical(f"Failed to get user {identity_name} wallet")
+            error_msg = f"Failed to get user {identity_name} wallet"
+            j.logger.critical(error_msg)
+            alert = j.tools.alerthandler.alert_raise(app_name="jukebox", message=error_msg, alert_type="exception")
+            subject = "Jukebox Auto Extend Pools Failed"
+            message = (
+                f"Dear {user},\n\n"
+                f"Your pool with ID {pool_id} for deployment {deployment_name} is about to expire and we are not "
+                "able to extend it automatically, "
+                f"please contact our support team with alert ID {alert.id}"
+            )
+            return
         try:
             zos.billing.payout_farmers(wallet, pool_info)
             subject = "Jukebox Auto Extend Pools"
