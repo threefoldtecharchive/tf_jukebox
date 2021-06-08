@@ -10,6 +10,7 @@ class UbuntuDeploy(JukeboxDeployChatflow):
     SOLUTION_TYPE = "ubuntu"
     FLIST = f"https://hub.grid.tf/tf-bootable/3bot-ubuntu-20.04.flist"
     steps = [
+        "get_deployment_name",
         "block_chain_info",
         "choose_farm",
         "set_expiration",
@@ -27,7 +28,7 @@ class UbuntuDeploy(JukeboxDeployChatflow):
         self.metadata = {
             "form_info": {
                 "chatflow": self.SOLUTION_TYPE,
-                "Solution name": "test_node",
+                "Solution name": self.deployment_name,
                 "number_of_nodes": self.nodes_count,
             },
         }
