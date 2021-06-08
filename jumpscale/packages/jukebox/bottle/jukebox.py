@@ -148,16 +148,7 @@ def list_deployments(solution_type: str) -> str:
     prefixed_tname = f"{IDENTITY_PREFIX}_{tname.replace('.3bot', '')}"
     deployments = jukebox.list_deployments(prefixed_tname, solution_type)[solution_type]
 
-    workloads = []
-    # flatten all workloads with same deployment name
-    for deployment in deployments:
-        metadata = deployment["metadata"]
-        deployment_name = deployment["name"]
-        for workload in deployment["workloads"]:
-            flattened_workload = {"name": deployment_name, "metadata": metadata, "workload": workload}
-            workloads.append(flattened_workload)
-
-    return j.data.serializers.json.dumps({"data": workloads})
+    return j.data.serializers.json.dumps({"data": deployments})
 
 
 @app.route("/api/deployments", method="POST")
@@ -166,4 +157,11 @@ def list_all_deployments() -> str:
     # TODO
     user_info = j.data.serializers.json.loads(get_user_info())
     loggedin_tname = user_info["username"]
+    return j.data.serializers.json.dumps({"data": {}})
+
+
+@app.route("/api/deployments/cancel", method="POST")
+@package_authorized("jukebox")
+def cancel_deployment() -> str:
+    # TODO
     return j.data.serializers.json.dumps({"data": {}})

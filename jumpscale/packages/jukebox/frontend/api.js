@@ -46,37 +46,15 @@ const apiClient = {
         headers: { 'Content-Type': 'application/json' }
       })
     },
-    deleteSolution: (solutionId) => {
+    cancelDeployment: (name) => {
       return axios({
         url: `${baseURL}/deployments/cancel/`,
         method: "post",
-        data: { solution_id: solutionId },
+        data: { name: name },
         headers: { 'Content-Type': 'application/json' }
       })
     },
-    // listVdcs: () => {
-    //   return axios({
-    //     url: `/vdc/api/vdcs`,
-    //     method: "get",
-    //     headers: { 'Content-Type': 'application/json' }
-    //   })
 
-    // },
-    // getVdcInfo: (name) => {
-    //   return axios({
-    //     url: `/vdc/api/vdcs/` + name,
-    //     headers: { 'Content-Type': 'application/json' },
-    //     method: "get"
-    //   })
-    // },
-    // deleteVDC: (name) => {
-    //   return axios({
-    //     url: `/vdc/api/vdcs/delete`,
-    //     method: "post",
-    //     data: { name: name },
-    //     headers: { 'Content-Type': 'application/json' }
-    //   })
-    // },
   },
   license: {
     accept: () => {

@@ -45,18 +45,50 @@
 
             <v-data-table
               :loading="loading"
-              :headers="headers"
+              :headers="mainheaders"
               :items="deployedSolutions"
               class="elevation-1"
+              show-expand
             >
               <template slot="no-data">No {{solution.name.toLowerCase()}} instances available</p></template>
+
+              <template v-slot:expanded-item="{ headers, item }">
+                <td :colspan="headers.length" class="py-6 font-weight-black">
+                    <p class="mb-4">Workloads</p>
+                    <v-data-table
+                      :loading="loading"
+                      :headers="workloadHeaders"
+                      :items="item.workloads"
+                      class="elevation-1"
+                      hide-default-footer
+
+                    >
+                      <template slot="no-data">No workloads available</p></template>
+                    </v-data-table>
+                </td>
+              </template>
+
+              <template v-slot:item.actions="{ item }">
+                <v-tooltip top>
+                  <template v-slot:activator="{ on, attrs }">
+                    <v-btn icon @click.stop="cancelDeployment(item)">
+                      <v-icon v-bind="attrs" v-on="on" color="#810000"
+                        >mdi-delete</v-icon
+                      >
+                    </v-btn>
+                  </template>
+                  <span>Delete</span>
+                </v-tooltip>
+              </template>
+
+
             </v-data-table>
           </v-card-text>
         </v-card>
       </template>
     </base-component>
-    <solution-info v-if="selected" v-model="dialogs.info" :data="selected"></solution-info>
-    <cancel-solution v-if="selected" v-model="dialogs.cancelSolution" :namespace="selected.Namespace" :releasename="selected.Release" :solutionid="selected['User Supplied Values'].solution_uuid" :vdcname="selected['VDC Name']"></cancel-solution>
+    <!--<solution-info v-if="selected" v-model="dialogs.info" :data="selected"></solution-info> -->
+    <cancel-deployment v-if="selected" v-model="dialogs.cancelDeployment" :deploymentName="selected.name" ></cancel-deployment>
   </div>
 </template>
 
@@ -67,8 +99,8 @@ module.exports = {
   },
 
   components: {
-    "solution-info": httpVueLoader("../base/Info.vue"),
-    "cancel-solution": httpVueLoader("./Delete.vue"),
+    // "solution-info": httpVueLoader("../base/Info.vue"),
+    "cancel-deployment": httpVueLoader("./Delete.vue"),
   },
   data() {
     return {
@@ -76,18 +108,26 @@ module.exports = {
       selected: null,
       dialogs: {
         info: false,
-        cancelSolution: false,
+        cancelDeployment: false,
       },
-      headers: [
-        { text: "Id", value: "id" },
+      mainheaders: [
         { text: "Deployment name", value: "name" },
+        { text: "Farm name", value: "farm" },
+        { text: "Active nodes", value: "total" },
+        { text: "Actions", value: "actions", sortable: false },
+        { text: '', value: 'data-table-expand' }
+      ],
+      workloadHeaders:[
+        { text: "Id", value: "id" },
         { text: "IP address", value: "ip" },
         { text: "Cpu", value: "cpu" },
         { text: "Memory /MB", value: "memory" },
         { text: "Disk Size /MB", value: "disk" },
         { text: "Creation Time", value: "creation" },
         { text: "Actions", value: "actions", sortable: false },
+
       ],
+
       deployedSolutions: [],
       sections: SECTIONS,
     };
@@ -118,53 +158,39 @@ module.exports = {
     started(solution_type) {
       return localStorage.hasOwnProperty(solution_type);
     },
-    showInfo(data) {
+    // showInfo(data) {
+    //   this.selected = data;
+    //   this.dialogs.info = true;
+    // },
+    cancelDeployment(data) {
       this.selected = data;
-      this.dialogs.info = true;
-    },
-    deleteSolution(data) {
-      this.selected = data;
-      this.dialogs.cancelSolution = true;
+      this.dialogs.cancelDeployment = true;
     },
     getDeployedSolutions(solution_type) {
-      if(solution_type === "all"){
-        let solutionTypes = []
-        for(sol in this.sections["All Solutions"].apps){
-          solutionTypes.push(sol)
-        }
-        this.$api.solutions
-        .getAllSolutions(solutionTypes)
-        .then((response) => {
-          this.deployedSolutions = response.data.data;
-          chartTypeHeader = { text: "Solution Type", value: "Chart"}
-          this.headers = [this.headers[0],chartTypeHeader,...this.headers.slice(1)]
-        })
-        .finally(() => {
-          this.loading = false;
-        });
-
-      }
-      else{
         this.$api.solutions
           .getSolutions(solution_type)
           .then((response) => {
             this.deployedSolutions = response.data.data;
+
             for (let i = 0; i < this.deployedSolutions.length; i++) {
-              let deployment = this.deployedSolutions[i];
-              deployment["id"] = deployment.workload.id
-              deployment["ip"] = deployment.workload.network_connection[0].ipaddress
-              deployment["cpu"] = deployment.workload.capacity.cpu
-              deployment["memory"] = deployment.workload.capacity.memory
-              deployment["disk"] = deployment.workload.capacity.disk_size
-              deployment["creation"] = new Date(deployment.workload.info.epoch* 1000).toLocaleString("en-GB");
+              for (let j = 0; j < this.deployedSolutions[i].workloads.length; j++) {
+                let workload = this.deployedSolutions[i].workloads[j];
+                // this.deployedSolutions[i]["id"] = workload.id
+                this.deployedSolutions[i]["total"] = this.deployedSolutions[i].workloads.length
+                workload["cpu"] = workload.capacity.cpu
+                workload["memory"] = workload.capacity.memory
+                workload["disk"] = workload.capacity.disk_size
+                workload["ip"] = workload.network_connection[0].ipaddress
+                workload["creation"] = new Date(workload.info.epoch* 1000).toLocaleString("en-GB");
 
               }
+            }
 
           })
           .finally(() => {
             this.loading = false;
           });
-      }
+
     },
   },
   mounted() {
@@ -180,4 +206,9 @@ a.chatflowInfo {
   right: 10px;
   top: 10px;
 }
+
+.v-data-table__expanded.v-data-table__expanded__content {
+  box-shadow: none !important;
+}
+
 </style>

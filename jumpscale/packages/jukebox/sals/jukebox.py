@@ -293,6 +293,12 @@ def deploy_container(
     return resv_id
 
 
+def _get_farm_name(pool_id, identity_name):
+    zos = j.sals.zos.get(identity_name)
+    farm_id = j.sals.reservation_chatflow.deployer.get_pool_farm_id(pool_id=pool_id)
+    return zos._explorer.farms.get(farm_id).name
+
+
 def _filter_deployments(workloads, identity_name, solution_type=None):
     deployments = defaultdict(lambda: [])
     for workload in workloads:
@@ -313,8 +319,9 @@ def _filter_deployments(workloads, identity_name, solution_type=None):
                         deployment["workloads"].append(workload.to_dict())
                         break
                 else:
+                    farm_name = _get_farm_name(workload.info.pool_id, identity_name)
                     deployments[workload_solution_type].append(
-                        {"name": name, "metadata": form_info, "workloads": [workload.to_dict()]}
+                        {"name": name, "metadata": form_info, "farm": farm_name, "workloads": [workload.to_dict()]}
                     )
 
     return deployments
