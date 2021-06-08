@@ -13,7 +13,16 @@ IDENTITY_PREFIX = "jukebox"
 
 class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
     title = "Blockchain"
-    steps = ["block_chain_info", "choose_farm", "set_expiration", "upload_public_key", "payment", "deploy", "success"]
+    steps = [
+        "get_deployment_name",
+        "block_chain_info",
+        "choose_farm",
+        "set_expiration",
+        "upload_public_key",
+        "payment",
+        "deploy",
+        "success",
+    ]
     # FLIST = "<flist_url>"
     # QUERY = {"cru": 1, "sru": 1, "mru": 1}
 
@@ -48,6 +57,20 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
 
         self.wallet = jukebox.get_or_create_user_wallet(wallet_name)
 
+    @chatflow_step(title="Deployment Name")
+    def get_deployment_name(self):
+        self._init()
+        deployment_names = []
+        all_deployments = jukebox.list_deployments(identity_name=self.identity_name, solution_type=self.SOLUTION_TYPE)
+        if all_deployments:
+            deployment_names = [deployment["name"] for deployment in all_deployments[self.SOLUTION_TYPE]]
+        self.deployment_name = self.string_ask(
+            "Please enter a name for your Deployment (will be used in listing and deletions in the future)",
+            required=True,
+            not_exist=["Deployment", deployment_names],
+            max_length=20,
+        )
+
     def _blockchain_form(self):
         # location
         # num of nodes
@@ -56,7 +79,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         self.nodes_count = form.int_ask("Please enter the number of nodes you want to deploy", required=True)
         self.farm_selection = form.single_choice(
             "Do you wish to select the farm automatically?",
-            ["Automatically Select Farm", "Manually Select Farm"],
+            ["Yes", "No"],
             required=True,
             default="Automatically Select Farm",
         )
@@ -65,7 +88,6 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
 
     @chatflow_step(title="Blockchain Information")
     def block_chain_info(self):
-        self._init()
         self._blockchain_form()
 
     @chatflow_step(title="Choose farm")
@@ -80,8 +102,8 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
                 self.md_show(f"There are not enough farms to deploy {self.nodes_count} nodes.")
             else:
                 break
-        if self.farm_selection.value == "Manually Select Farm":
-            self.farm = self.single_choice(f"Please select a farm to deploy on", available_farms, required=True)
+        if self.farm_selection.value == "No":
+            self.farm = self.drop_down_choice(f"Please select a farm to deploy on", available_farms, required=True)
         else:
             self.farm = random.choice(available_farms)
 
@@ -132,34 +154,35 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
             )
 
             pool_ids = [pool_rev_id]
-            self.network_name = f"jukebox_{self.owner_tname}_{pool_rev_id}"
-
-            self.md_show_update("Deploying network...")
-            # Create network
-            _, self.wg_quick = jukebox.deploy_network(
-                self.identity_name, pool_rev_id, network_name=self.network_name, owner_tname=self.identity_name
-            )
-
-            # Get possible nodes,ip_addresses then spawn deployment of container in gevent
-            self.md_show_update("Deploying containers...")
-            jukebox.deploy_all_containers(
-                farm_name=self.farm,
-                number_of_deployments=self.nodes_count,
-                network_name=self.network_name,
-                cru=self.QUERY["cru"],
-                sru=self.QUERY["sru"],
-                mru=self.QUERY["mru"],
-                pool_ids=pool_ids,
-                identity_name=self.identity_name,
-                owner_tname=self.identity_name,
-                blockchain_type=self.SOLUTION_TYPE,
-                env=self.env,
-                metadata=self.metadata,
-            )
         except Exception as e:
             j.logger.error(f"Failed to deploy", exception=e)
             j.sals.billing.issue_refund(self.payment_id)
             self.stop("Failed to deploy")
+
+        self.network_name = f"jukebox_{self.owner_tname}_{pool_rev_id}"
+
+        self.md_show_update("Deploying network...")
+        # Create network
+        _, self.wg_quick = jukebox.deploy_network(
+            self.identity_name, pool_rev_id, network_name=self.network_name, owner_tname=self.identity_name
+        )
+
+        # Get possible nodes,ip_addresses then spawn deployment of container in gevent
+        self.md_show_update("Deploying containers...")
+        jukebox.deploy_all_containers(
+            farm_name=self.farm,
+            number_of_deployments=self.nodes_count,
+            network_name=self.network_name,
+            cru=self.QUERY["cru"],
+            sru=self.QUERY["sru"],
+            mru=self.QUERY["mru"],
+            pool_ids=pool_ids,
+            identity_name=self.identity_name,
+            owner_tname=self.identity_name,
+            blockchain_type=self.SOLUTION_TYPE,
+            env=self.env,
+            metadata=self.metadata,
+        )
 
     @chatflow_step(title="Success", disable_previous=True, final_step=True)
     def success(self):
