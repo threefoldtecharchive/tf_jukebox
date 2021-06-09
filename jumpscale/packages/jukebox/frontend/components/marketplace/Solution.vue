@@ -89,6 +89,18 @@
                   </template>
                   <span>{{ item.total - item.active_workloads }} node(s) of this deployment went down</span>
                 </v-tooltip>
+                <v-tooltip top>
+                  <template v-slot:activator="{ on, attrs }">
+                    <div v-bind="attrs" v-on="on">
+                    <v-switch
+                      v-model="item.auto_extend"
+                      @click.stop="switchAutoExtend(item)"
+                      dense
+                    ></v-switch>
+                    </div>
+                  </template>
+                  <span>Auto Extend Deployment</span>
+                </v-tooltip>
               </template>
 
 
@@ -122,6 +134,7 @@ module.exports = {
         { text: "Deployment Name", value: "name" },
         { text: "Farm Name", value: "farm" },
         { text: "Total Nodes", value: "total" },
+        { text: "Expiration Date", value: "expiration" },
         { text: "Actions", value: "actions", sortable: false },
         { text: "", value: "data-table-expand" },
       ],
@@ -178,6 +191,9 @@ module.exports = {
           for (let i = 0; i < this.deployedSolutions.length; i++) {
             this.deployedSolutions[i]["total"] =
               this.deployedSolutions[i].metadata.number_of_nodes;
+            this.deployedSolutions[i].expiration = new Date(
+              this.deployedSolutions[i].expiration * 1000
+            ).toLocaleString("en-GB");
             for (
               let j = 0;
               j < this.deployedSolutions[i].workloads.length;
@@ -196,6 +212,18 @@ module.exports = {
               ).toLocaleString("en-GB");
             }
           }
+        })
+        .finally(() => {
+          this.loading = false;
+        });
+    },
+    switchAutoExtend(item) {
+      this.loading = false;
+      console.log(item.autoExtend);
+      this.$api.solutions
+        .switchAutoExtend(item.name, this.type, item.autoExtend)
+        .then((response) => {
+          this.getDeployedSolutions(this.type);
         })
         .finally(() => {
           this.loading = false;

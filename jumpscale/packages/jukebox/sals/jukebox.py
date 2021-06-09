@@ -21,6 +21,7 @@ from jumpscale.sals.vdc.scheduler import GlobalCapacityChecker, GlobalScheduler,
 
 CURRENCIES = ["TFT"]
 IDENTITY_PREFIX = "jukebox"
+JUKEBOX_AUTO_EXTEND_KEY = "jukebox:auto_extend"
 
 
 def on_exception(greenlet_thread):
@@ -300,6 +301,7 @@ def _get_farm_name(pool_id, identity_name):
 
 
 def _filter_deployments(workloads, identity_name, solution_type=None):
+    zos = j.sals.zos.get(identity_name)
     deployments = defaultdict(lambda: [])
     for workload in workloads:
         if workload.info.workload_type == WorkloadType.Container:
@@ -320,8 +322,21 @@ def _filter_deployments(workloads, identity_name, solution_type=None):
                         break
                 else:
                     farm_name = _get_farm_name(workload.info.pool_id, identity_name)
+                    pool = zos.pools.get(workload.info.pool_id)
+                    expiration = pool.empty_at
+                    auto_extend = j.core.db.hget(
+                        JUKEBOX_AUTO_EXTEND_KEY, f"{identity_name}:{workload_solution_type}:{name}"
+                    )
+                    auto_extend = True if auto_extend == b"True" else False
                     deployments[workload_solution_type].append(
-                        {"name": name, "metadata": form_info, "farm": farm_name, "workloads": [workload.to_dict()]}
+                        {
+                            "name": name,
+                            "metadata": form_info,
+                            "farm": farm_name,
+                            "expiration": expiration,
+                            "auto_extend": auto_extend,
+                            "workloads": [workload.to_dict()],
+                        }
                     )
 
     return deployments

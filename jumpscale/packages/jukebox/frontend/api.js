@@ -31,11 +31,19 @@ const apiClient = {
         method: "get",
       })
     },
-    cancelDeployment: (name,solutionType) => {
+    cancelDeployment: (name, solutionType) => {
       return axios({
         url: `${baseURL}/deployments/cancel/`,
         method: "post",
         data: { name: name, solution_type: solutionType },
+        headers: { 'Content-Type': 'application/json' }
+      })
+    },
+    switchAutoExtend: (name, solutionType, newState) => {
+      return axios({
+        url: `${baseURL}/deployments/switch_auto_extend/`,
+        method: "post",
+        data: { name: name, solution_type: solutionType, new_state: newState },
         headers: { 'Content-Type': 'application/json' }
       })
     },
