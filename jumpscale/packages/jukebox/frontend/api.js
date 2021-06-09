@@ -24,33 +24,18 @@ const apiClient = {
       })
     },
   },
-  explorers: {
-    get: () => {
-      return axios({
-        url: "/actors/admin/get_explorer/"
-      })
-    },
-  },
-  solutions: { //TODO in bottle API endpoints
+  solutions: {
     getSolutions: (solutionType) => {
       return axios({
         url: `${baseURL}/deployments/${solutionType}`,
         method: "get",
       })
     },
-    getAllSolutions: (solutionTypes) => {
-      return axios({
-        url: `${baseURL}/deployments`,
-        method: "post",
-        data: { solution_types: solutionTypes },
-        headers: { 'Content-Type': 'application/json' }
-      })
-    },
-    cancelDeployment: (name) => {
+    cancelDeployment: (name,solutionType) => {
       return axios({
         url: `${baseURL}/deployments/cancel/`,
         method: "post",
-        data: { name: name },
+        data: { name: name, solution_type: solutionType },
         headers: { 'Content-Type': 'application/json' }
       })
     },
@@ -64,15 +49,6 @@ const apiClient = {
       })
     },
   },
-  wallets: {
-    walletQRCodeImage: (address, amount, scale) => {
-      return axios({
-        url: `${baseURL}/wallet/qrcode/get`,
-        method: "post",
-        data: { address: address,amount: amount, scale: scale},
-        headers: { 'Content-Type': 'application/json' }
-      })
-    },
-  }
+
 
 }

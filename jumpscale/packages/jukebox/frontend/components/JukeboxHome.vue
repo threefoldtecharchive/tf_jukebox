@@ -13,16 +13,7 @@
             @click.stop="viewWorkloads()"
             >Jukebox deployer</v-btn
           >
-          <!--
-          <v-btn
-            color="#7DB78D"
-            class="mt-8 mx-2"
-            dark
-            large
-            @click.stop="openChatflow('new_blockchain_node')"
-            >Deploy new node</v-btn
-          >
-          -->
+
         </v-col>
       </v-row>
     </v-parallax>

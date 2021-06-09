@@ -337,3 +337,28 @@ def list_deployments(identity_name, solution_type=None):
     zos = j.sals.zos.get(identity_name)
     workloads = zos.workloads.list_workloads(identity.tid, NextAction.DEPLOY)
     return _filter_deployments(workloads, identity_name, solution_type)
+
+
+def delete_deployment(identity_name, solution_type, deployment_name):
+    zos = j.sals.zos.get(identity_name)
+    deployments = list_deployments(identity_name, solution_type)
+    if solution_type not in deployments:
+        return False
+
+    deleted_workloads = []
+    # Delete workloads of the deployment with deployment_name
+    for deployment in deployments[solution_type]:
+        if deployment["name"] == deployment_name:
+            for workload in deployment["workloads"]:
+                zos.workloads.decomission(workload["id"])
+                deleted_workloads.append(workload["id"])
+            success = True
+            break
+    else:
+        success = False
+
+    # Wait for all workloads to be deleted successfully
+    for wid in deleted_workloads:
+        success = success and deployer.wait_workload_deletion(wid, identity_name=identity_name)
+
+    return success

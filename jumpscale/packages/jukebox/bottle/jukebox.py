@@ -151,17 +151,16 @@ def list_deployments(solution_type: str) -> str:
     return j.data.serializers.json.dumps({"data": deployments})
 
 
-@app.route("/api/deployments", method="POST")
-@package_authorized("jukebox")
-def list_all_deployments() -> str:
-    # TODO
-    user_info = j.data.serializers.json.loads(get_user_info())
-    loggedin_tname = user_info["username"]
-    return j.data.serializers.json.dumps({"data": {}})
-
-
 @app.route("/api/deployments/cancel", method="POST")
 @package_authorized("jukebox")
 def cancel_deployment() -> str:
-    # TODO
+    user_info = j.data.serializers.json.loads(get_user_info())
+    tname = user_info["username"]
+    prefixed_tname = f"{IDENTITY_PREFIX}_{tname.replace('.3bot', '')}"
+
+    data = j.data.serializers.json.loads(request.body.read())
+    deployment_name = data.get("name")
+    solution_type = data.get("solution_type", "").lower()
+
+    jukebox.delete_deployment(prefixed_tname, solution_type, deployment_name)
     return j.data.serializers.json.dumps({"data": {}})

@@ -87,8 +87,7 @@
         </v-card>
       </template>
     </base-component>
-    <!--<solution-info v-if="selected" v-model="dialogs.info" :data="selected"></solution-info> -->
-    <cancel-deployment v-if="selected" v-model="dialogs.cancelDeployment" :deploymentName="selected.name" ></cancel-deployment>
+    <cancel-deployment v-if="selected" v-model="dialogs.cancelDeployment" @done="getDeployedSolutions(solution.name)" :deploymentname="selected.name" :solutiontype="solution.name" ></cancel-deployment>
   </div>
 </template>
 
@@ -99,7 +98,6 @@ module.exports = {
   },
 
   components: {
-    // "solution-info": httpVueLoader("../base/Info.vue"),
     "cancel-deployment": httpVueLoader("./Delete.vue"),
   },
   data() {
@@ -124,7 +122,6 @@ module.exports = {
         { text: "Memory /MB", value: "memory" },
         { text: "Disk Size /MB", value: "disk" },
         { text: "Creation Time", value: "creation" },
-        { text: "Actions", value: "actions", sortable: false },
 
       ],
 
@@ -158,10 +155,7 @@ module.exports = {
     started(solution_type) {
       return localStorage.hasOwnProperty(solution_type);
     },
-    // showInfo(data) {
-    //   this.selected = data;
-    //   this.dialogs.info = true;
-    // },
+
     cancelDeployment(data) {
       this.selected = data;
       this.dialogs.cancelDeployment = true;
