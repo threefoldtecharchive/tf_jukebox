@@ -293,6 +293,12 @@ def deploy_container(
     return resv_id
 
 
+def _get_farm_name(pool_id, identity_name):
+    zos = j.sals.zos.get(identity_name)
+    farm_id = j.sals.reservation_chatflow.deployer.get_pool_farm_id(pool_id=pool_id)
+    return zos._explorer.farms.get(farm_id).name
+
+
 def _filter_deployments(workloads, identity_name, solution_type=None):
     deployments = defaultdict(lambda: [])
     for workload in workloads:
@@ -313,8 +319,9 @@ def _filter_deployments(workloads, identity_name, solution_type=None):
                         deployment["workloads"].append(workload.to_dict())
                         break
                 else:
+                    farm_name = _get_farm_name(workload.info.pool_id, identity_name)
                     deployments[workload_solution_type].append(
-                        {"name": name, "metadata": form_info, "workloads": [workload.to_dict()]}
+                        {"name": name, "metadata": form_info, "farm": farm_name, "workloads": [workload.to_dict()]}
                     )
 
     return deployments
@@ -330,3 +337,28 @@ def list_deployments(identity_name, solution_type=None):
     zos = j.sals.zos.get(identity_name)
     workloads = zos.workloads.list_workloads(identity.tid, NextAction.DEPLOY)
     return _filter_deployments(workloads, identity_name, solution_type)
+
+
+def delete_deployment(identity_name, solution_type, deployment_name):
+    zos = j.sals.zos.get(identity_name)
+    deployments = list_deployments(identity_name, solution_type)
+    if solution_type not in deployments:
+        return False
+
+    deleted_workloads = []
+    # Delete workloads of the deployment with deployment_name
+    for deployment in deployments[solution_type]:
+        if deployment["name"] == deployment_name:
+            for workload in deployment["workloads"]:
+                zos.workloads.decomission(workload["id"])
+                deleted_workloads.append(workload["id"])
+            success = True
+            break
+    else:
+        success = False
+
+    # Wait for all workloads to be deleted successfully
+    for wid in deleted_workloads:
+        success = success and deployer.wait_workload_deletion(wid, identity_name=identity_name)
+
+    return success

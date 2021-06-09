@@ -11,6 +11,7 @@ from jumpscale.core.base import StoredFactory
 from jumpscale.packages.auth.bottle.auth import authenticated, get_user_info, login_required, package_authorized
 
 from jumpscale.packages.jukebox.bottle.models import UserEntry
+from jumpscale.packages.jukebox.sals import jukebox
 
 app = Bottle()
 
@@ -142,16 +143,24 @@ def allowed():
 @app.route("/api/deployments/<solution_type>", method="GET")
 @package_authorized("jukebox")
 def list_deployments(solution_type: str) -> str:
-    # TODO
     user_info = j.data.serializers.json.loads(get_user_info())
-    loggedin_tname = user_info["username"]
-    return j.data.serializers.json.dumps({"data": {}})
+    tname = user_info["username"]
+    prefixed_tname = f"{IDENTITY_PREFIX}_{tname.replace('.3bot', '')}"
+    deployments = jukebox.list_deployments(prefixed_tname, solution_type)[solution_type]
+
+    return j.data.serializers.json.dumps({"data": deployments})
 
 
-@app.route("/api/deployments", method="POST")
+@app.route("/api/deployments/cancel", method="POST")
 @package_authorized("jukebox")
-def list_all_deployments() -> str:
-    # TODO
+def cancel_deployment() -> str:
     user_info = j.data.serializers.json.loads(get_user_info())
-    loggedin_tname = user_info["username"]
+    tname = user_info["username"]
+    prefixed_tname = f"{IDENTITY_PREFIX}_{tname.replace('.3bot', '')}"
+
+    data = j.data.serializers.json.loads(request.body.read())
+    deployment_name = data.get("name")
+    solution_type = data.get("solution_type", "").lower()
+
+    jukebox.delete_deployment(prefixed_tname, solution_type, deployment_name)
     return j.data.serializers.json.dumps({"data": {}})

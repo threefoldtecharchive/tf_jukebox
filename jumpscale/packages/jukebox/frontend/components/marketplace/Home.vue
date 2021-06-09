@@ -6,6 +6,8 @@
           <h1 class="mx-auto text-center white--text">
             Blockchain Solutions
           </h1>
+        </v-row>
+        <v-row>
           <v-col md="4" offset-md="4">
             <v-autocomplete
               auto-select-first
@@ -25,11 +27,11 @@
                   <v-list-item-content v-text="data.item"></v-list-item-content>
                 </template>
                 <template v-else>
-                
+
                   <v-list-item-avatar>
                     <img :src="data.item.avatar" />
                   </v-list-item-avatar>
-                
+
                   <v-list-item-content>
                     <v-list-item-title
                       v-html="data.item.name"
