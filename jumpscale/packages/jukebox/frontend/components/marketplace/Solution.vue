@@ -49,6 +49,8 @@
               :items="deployedSolutions"
               class="elevation-1"
               show-expand
+              item-key="name"
+
             >
               <template slot="no-data">No {{solution.name.toLowerCase()}} instances available</p></template>
 
