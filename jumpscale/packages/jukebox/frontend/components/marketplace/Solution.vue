@@ -56,7 +56,7 @@
 
               <template v-slot:expanded-item="{ headers, item }">
                 <td :colspan="headers.length" class="py-6 font-weight-black">
-                    <p class="mb-4">Workloads</p>
+                    <p class="mb-4">Active Workloads</p>
                     <v-data-table
                       :loading="loading"
                       :headers="workloadHeaders"
@@ -80,6 +80,14 @@
                     </v-btn>
                   </template>
                   <span>Delete</span>
+                </v-tooltip>
+                <v-tooltip top v-if="item.active_workloads !== item.total">
+                  <template v-slot:activator="{ on, attrs }">
+                    <v-icon v-bind="attrs" v-on="on" color="#810000"
+                      >mdi-alert-outline</v-icon
+                    >
+                  </template>
+                  <span>{{ item.total - item.active_workloads }} node(s) of this deployment went down</span>
                 </v-tooltip>
               </template>
 
@@ -111,20 +119,19 @@ module.exports = {
         cancelDeployment: false,
       },
       mainheaders: [
-        { text: "Deployment name", value: "name" },
-        { text: "Farm name", value: "farm" },
-        { text: "Active nodes", value: "total" },
+        { text: "Deployment Name", value: "name" },
+        { text: "Farm Name", value: "farm" },
+        { text: "Total Nodes", value: "total" },
         { text: "Actions", value: "actions", sortable: false },
-        { text: '', value: 'data-table-expand' }
+        { text: "", value: "data-table-expand" },
       ],
-      workloadHeaders:[
+      workloadHeaders: [
         { text: "Id", value: "id" },
         { text: "IP address", value: "ip" },
         { text: "Cpu", value: "cpu" },
         { text: "Memory /MB", value: "memory" },
         { text: "Disk Size /MB", value: "disk" },
         { text: "Creation Time", value: "creation" },
-
       ],
 
       deployedSolutions: [],
@@ -133,8 +140,8 @@ module.exports = {
   },
   computed: {
     solution() {
-      if(this.type==='all'){
-        return {name: "Deployed Solutions",type: "all"}
+      if (this.type === "all") {
+        return { name: "Deployed Solutions", type: "all" };
       }
       for (section in this.sections) {
         if (Object.keys(this.sections[section].apps).includes(this.type)) {
@@ -163,30 +170,36 @@ module.exports = {
       this.dialogs.cancelDeployment = true;
     },
     getDeployedSolutions(solution_type) {
-        this.$api.solutions
-          .getSolutions(solution_type)
-          .then((response) => {
-            this.deployedSolutions = response.data.data;
+      this.$api.solutions
+        .getSolutions(solution_type)
+        .then((response) => {
+          this.deployedSolutions = response.data.data;
 
-            for (let i = 0; i < this.deployedSolutions.length; i++) {
-              for (let j = 0; j < this.deployedSolutions[i].workloads.length; j++) {
-                let workload = this.deployedSolutions[i].workloads[j];
-                // this.deployedSolutions[i]["id"] = workload.id
-                this.deployedSolutions[i]["total"] = this.deployedSolutions[i].workloads.length
-                workload["cpu"] = workload.capacity.cpu
-                workload["memory"] = workload.capacity.memory
-                workload["disk"] = workload.capacity.disk_size
-                workload["ip"] = workload.network_connection[0].ipaddress
-                workload["creation"] = new Date(workload.info.epoch* 1000).toLocaleString("en-GB");
-
-              }
+          for (let i = 0; i < this.deployedSolutions.length; i++) {
+            this.deployedSolutions[i]["total"] =
+              this.deployedSolutions[i].metadata.number_of_nodes;
+            for (
+              let j = 0;
+              j < this.deployedSolutions[i].workloads.length;
+              j++
+            ) {
+              let workload = this.deployedSolutions[i].workloads[j];
+              // this.deployedSolutions[i]["id"] = workload.id
+              this.deployedSolutions[i]["active_workloads"] =
+                this.deployedSolutions[i].workloads.length;
+              workload["cpu"] = workload.capacity.cpu;
+              workload["memory"] = workload.capacity.memory;
+              workload["disk"] = workload.capacity.disk_size;
+              workload["ip"] = workload.network_connection[0].ipaddress;
+              workload["creation"] = new Date(
+                workload.info.epoch * 1000
+              ).toLocaleString("en-GB");
             }
-
-          })
-          .finally(() => {
-            this.loading = false;
-          });
-
+          }
+        })
+        .finally(() => {
+          this.loading = false;
+        });
     },
   },
   mounted() {
@@ -206,5 +219,4 @@ a.chatflowInfo {
 .v-data-table__expanded.v-data-table__expanded__content {
   box-shadow: none !important;
 }
-
 </style>
