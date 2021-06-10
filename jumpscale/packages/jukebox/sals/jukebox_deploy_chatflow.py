@@ -12,6 +12,7 @@ IDENTITY_PREFIX = "jukebox"
 
 
 class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
+    ENTRY_POINT = ""
     title = "Blockchain"
     steps = [
         "get_deployment_name",
@@ -183,6 +184,9 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
             env=self.env,
             metadata=self.metadata,
             flist=self.FLIST,
+            entry_point = self.ENTRY_POINT,
+            secret_env=self.secret_env,
+
         )
 
     @chatflow_step(title="Success", disable_previous=True, final_step=True)

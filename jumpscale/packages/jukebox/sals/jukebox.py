@@ -229,12 +229,14 @@ def deploy_all_containers(
     owner_tname,
     blockchain_type,
     env=None,
+    secret_env = None,
     metadata=None,
     flist=None,
+    entry_point = "",
 ):
     metadata = metadata or {}
     env = env or {}
-
+    secret_env = secret_env or {}
     used_ip_addresses = defaultdict(lambda: [])  # {node_id:[ip_addresses]}
     # TODO when using multiple farms use GlobalScheduler instead and pass farm_name when deploying
     scheduler = Scheduler(farm_name=farm_name)
@@ -262,6 +264,8 @@ def deploy_all_containers(
             env,
             metadata,
             flist,
+            entry_point,
+            secret_env,
         )
         thread.link_exception(on_exception)
         deployment_threads.append(thread)
@@ -280,10 +284,12 @@ def deploy_container(
     env=None,
     metadata=None,
     flist=None,
+    entry_point="",
+    secret_env=None,
 ):
     metadata = metadata or {}
     env = env or {}
-
+    secret_env = secret_env or {}
     if not flist:
         raise Exception(f"Flist for {blockchain_type} not found, Please pass it")
 
@@ -299,11 +305,12 @@ def deploy_container(
         disk_size=512,
         env=env,
         interactive=False,
-        entrypoint="/bin/bash /start.sh",
+        entrypoint=entry_point,
         # log_config=self.log_config,
         public_ipv6=True,
         **metadata,
         solution_uuid=uuid.uuid4().hex,
+        secret_env=secret_env,
     )
     success = deployer.wait_workload(resv_id, None)
     if not success:
