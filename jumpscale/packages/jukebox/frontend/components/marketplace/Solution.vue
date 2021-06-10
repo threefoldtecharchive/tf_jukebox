@@ -91,8 +91,9 @@
                 </v-tooltip>
                 <v-tooltip top>
                   <template v-slot:activator="{ on, attrs }">
-                    <div v-bind="attrs" v-on="on">
+                    <div v-bind="attrs" v-on="on" class="switch-div" >
                     <v-switch
+                      class="v-switch"
                       v-model="item.auto_extend"
                       @click.stop="switchAutoExtend(item)"
                       dense
@@ -246,5 +247,15 @@ a.chatflowInfo {
 
 .v-data-table__expanded.v-data-table__expanded__content {
   box-shadow: none !important;
+}
+.switch-div {
+/* float: right; */
+display: inline-block;
+/* margin-top: 5px; */
+padding-left: 10px;
+}
+.v-switch {
+  padding-top: 5px;
+
 }
 </style>
