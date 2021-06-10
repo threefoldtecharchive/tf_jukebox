@@ -134,6 +134,7 @@ module.exports = {
       mainheaders: [
         { text: "Deployment Name", value: "name" },
         { text: "Farm Name", value: "farm" },
+        { text: "Pool ID", value: "pool_id" },
         { text: "Total Nodes", value: "total" },
         { text: "Expiration Date", value: "expiration" },
         { text: "Actions", value: "actions", sortable: false },

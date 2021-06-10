@@ -334,6 +334,7 @@ def _filter_deployments(workloads, identity_name, solution_type=None):
                             "metadata": form_info,
                             "farm": farm_name,
                             "expiration": expiration,
+                            "pool_id": pool.pool_id,
                             "autoextend": auto_extend,
                             "workloads": [workload.to_dict()],
                         }
@@ -379,13 +380,36 @@ def delete_deployment(identity_name, solution_type, deployment_name):
     return success
 
 
+def calculate_funding_amount(identity_name):
+    price = 0
+    zos = j.sals.zos.get(identity_name)
+    deployments = list_deployments(identity_name)
+    for deployments in deployments.values():
+        for deployment in deployments:
+            if not deployment["autoextend"]:
+                continue
+            if deployment["expiration"] > j.data.time.utcnow().timestamp + 60 * 60 * 24 * 2:
+                continue
+            pool_id = deployment["pool_id"]
+            pool = zos.pools.get(pool_id)
+            cus = pool.active_cu
+            sus = pool.active_su
+            ipv4us = pool.active_ipv4
+            farm_id = zos._explorer.farms.get(farm_name=deployment["farm"]).id
+            farm_prices = zos._explorer.farms.get_deal_for_threebot(farm_id, j.core.identity.me.tid)[
+                "custom_cloudunits_price"
+            ]
+            price += zos._explorer.prices.calculate(cus=cus, sus=sus, ipv4us=ipv4us, farm_prices=farm_prices)
+    return price * 60 * 60 * 24 * 30
+
+
 def get_wallet_funding_info(identity_name):
     wallet = j.clients.stellar.get(identity_name)
     if not wallet:
         return {}
 
     # TODO
-    amount = 5  # FIXMME
+    amount = calculate_funding_amount(identity_name)
 
     qrcode_data = f"TFT:{wallet.address}?amount={amount}&message=topup&sender=me"
     qrcode_image = j.tools.qrcode.base64_get(qrcode_data, scale=3)
@@ -399,3 +423,4 @@ def get_wallet_funding_info(identity_name):
         "qrcode": qrcode_image,
         "network": wallet.network.value,
     }
+    return data
