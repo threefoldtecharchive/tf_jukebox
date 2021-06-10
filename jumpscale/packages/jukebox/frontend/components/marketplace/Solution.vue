@@ -94,7 +94,7 @@
                     <div v-bind="attrs" v-on="on" class="switch-div" >
                     <v-switch
                       class="v-switch"
-                      v-model="item.auto_extend"
+                      v-model="item.autoextend"
                       @click.stop="switchAutoExtend(item)"
                       dense
                     ></v-switch>
@@ -220,9 +220,8 @@ module.exports = {
     },
     switchAutoExtend(item) {
       this.loading = false;
-      console.log(item.autoExtend);
       this.$api.solutions
-        .switchAutoExtend(item.name, this.type, item.autoExtend)
+        .switchAutoExtend(item.name, this.type, item.autoextend)
         .then((response) => {
           this.getDeployedSolutions(this.type);
         })

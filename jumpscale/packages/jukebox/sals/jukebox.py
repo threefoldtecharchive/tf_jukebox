@@ -334,7 +334,7 @@ def _filter_deployments(workloads, identity_name, solution_type=None):
                             "metadata": form_info,
                             "farm": farm_name,
                             "expiration": expiration,
-                            "auto_extend": auto_extend,
+                            "autoextend": auto_extend,
                             "workloads": [workload.to_dict()],
                         }
                     )
