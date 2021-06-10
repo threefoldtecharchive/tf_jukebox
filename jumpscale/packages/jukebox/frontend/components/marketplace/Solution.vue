@@ -81,19 +81,10 @@
                   </template>
                   <span>Delete</span>
                 </v-tooltip>
-                <v-tooltip top v-if="item.active_workloads !== item.total">
-                  <template v-slot:activator="{ on, attrs }">
-                    <v-icon v-bind="attrs" v-on="on" color="#810000"
-                      >mdi-alert-outline</v-icon
-                    >
-                  </template>
-                  <span>{{ item.total - item.active_workloads }} node(s) of this deployment went down</span>
-                </v-tooltip>
                 <v-tooltip top>
                   <template v-slot:activator="{ on, attrs }">
                     <div v-bind="attrs" v-on="on" class="switch-div" >
                     <v-switch
-                      class="v-switch"
                       v-model="item.autoextend"
                       @click.stop="switchAutoExtend(item)"
                       dense
@@ -101,6 +92,14 @@
                     </div>
                   </template>
                   <span>Auto Extend Deployment</span>
+                </v-tooltip>
+                <v-tooltip top v-if="item.active_workloads !== item.total">
+                  <template v-slot:activator="{ on, attrs }">
+                    <v-icon v-bind="attrs" v-on="on" color="#810000"
+                      >mdi-alert-outline</v-icon
+                    >
+                  </template>
+                  <span>{{ item.total - item.active_workloads }} node(s) of this deployment went down</span>
                 </v-tooltip>
               </template>
 
@@ -249,13 +248,7 @@ a.chatflowInfo {
   box-shadow: none !important;
 }
 .switch-div {
-/* float: right; */
 display: inline-block;
-/* margin-top: 5px; */
 padding-left: 10px;
-}
-.v-switch {
-  padding-top: 5px;
-
 }
 </style>

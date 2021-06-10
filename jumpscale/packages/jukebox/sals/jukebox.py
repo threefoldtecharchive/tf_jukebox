@@ -6,12 +6,27 @@ from time import sleep
 import uuid
 
 import gevent
-from jumpscale.clients.explorer.models import Container, DiskType, NextAction, WorkloadType
+from jumpscale.clients.explorer.models import (
+    Container,
+    DiskType,
+    NextAction,
+    WorkloadType,
+)
 from jumpscale.core.base import Base, fields
 from jumpscale.loader import j
-from jumpscale.sals.reservation_chatflow import DeploymentFailed, deployer, deployment_context, solutions
+from jumpscale.sals.reservation_chatflow import (
+    DeploymentFailed,
+    deployer,
+    deployment_context,
+    solutions,
+)
 
-from jumpscale.sals.vdc.scheduler import GlobalCapacityChecker, GlobalScheduler, Scheduler
+from jumpscale.sals.vdc.scheduler import (
+    GlobalCapacityChecker,
+    GlobalScheduler,
+    Scheduler,
+)
+from jumpscale.clients.stellar import TRANSACTION_FEES
 
 # 1. create pool
 # 2. create network
@@ -400,6 +415,7 @@ def calculate_funding_amount(identity_name):
                 "custom_cloudunits_price"
             ]
             price += zos._explorer.prices.calculate(cus=cus, sus=sus, ipv4us=ipv4us, farm_prices=farm_prices)
+            price += TRANSACTION_FEES
     return price * 60 * 60 * 24 * 30
 
 
@@ -408,9 +424,7 @@ def get_wallet_funding_info(identity_name):
     if not wallet:
         return {}
 
-    # TODO
     amount = calculate_funding_amount(identity_name)
-
     qrcode_data = f"TFT:{wallet.address}?amount={amount}&message=topup&sender=me"
     qrcode_image = j.tools.qrcode.base64_get(qrcode_data, scale=3)
     asset = "TFT"
@@ -419,7 +433,7 @@ def get_wallet_funding_info(identity_name):
     data = {
         "address": wallet.address,
         "balance": {"amount": current_balance, "asset": asset},
-        "amount": amount,
+        "amount": round(amount - current_balance, 6),
         "qrcode": qrcode_image,
         "network": wallet.network.value,
     }
