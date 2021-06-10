@@ -45,7 +45,7 @@ class MonitorDeployments(BackgroundService):
                     deployment_name=deployment["name"],
                     deployment_type=deployment_type,
                     user=user,
-                    auto_extend=deployment["auto_extend"],
+                    auto_extend=deployment["autoextend"],
                 )
                 gevent.sleep(1)
 
@@ -65,7 +65,7 @@ class MonitorDeployments(BackgroundService):
             message = (
                 f"Dear {user},\n\n"
                 f"Your pool with ID {pool_id} of {deployment_type} for deployment {deployment_name} is about to expire"
-                "please extend it manually or enable the auto extend option for this deployment"
+                "please enable the auto extend option for this deployment and fund the wallet if needed"
             )
             self._send_email(identity_name, subject, message)
             return
@@ -109,12 +109,7 @@ class MonitorDeployments(BackgroundService):
         recipient_email = identity.email.replace("_jukebox@", "@")
         mail_config = j.core.config.get("EMAIL_SERVER_CONFIG")
         sender = mail_config.get("username")
-        mail_info = {
-            "recipients_emails": [recipient_email],
-            "sender": sender,
-            "subject": subject,
-            "message": message,
-        }
+        mail_info = {"recipients_emails": [recipient_email], "sender": sender, "subject": subject, "message": message}
         j.core.db.rpush(MAIL_QUEUE, j.data.serializers.json.dumps(mail_info))
 
 

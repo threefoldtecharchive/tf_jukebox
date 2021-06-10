@@ -78,7 +78,6 @@ module.exports = {
     "solutions-section": httpVueLoader("./SolutionsSection.vue"),
   },
   data() {
-    console.log(this.$route.params.loggedin)
     return {
       loading: false,
       selectedObject: {},

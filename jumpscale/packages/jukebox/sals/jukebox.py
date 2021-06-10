@@ -377,3 +377,25 @@ def delete_deployment(identity_name, solution_type, deployment_name):
         success = success and deployer.wait_workload_deletion(wid, identity_name=identity_name)
 
     return success
+
+
+def get_wallet_funding_info(identity_name):
+    wallet = j.clients.stellar.get(identity_name)
+    if not wallet:
+        return {}
+
+    # TODO
+    amount = 5  # FIXMME
+
+    qrcode_data = f"TFT:{wallet.address}?amount={amount}&message=topup&sender=me"
+    qrcode_image = j.tools.qrcode.base64_get(qrcode_data, scale=3)
+    asset = "TFT"
+
+    current_balance = wallet.get_balance_by_asset(asset)
+    data = {
+        "address": wallet.address,
+        "balance": {"amount": current_balance, "asset": asset},
+        "amount": amount,
+        "qrcode": qrcode_image,
+        "network": wallet.network.value,
+    }

@@ -179,3 +179,19 @@ def switch_auto_extend() -> str:
     new_state = data.get("new_state", False)
     solution_type = data.get("solution_type", "").lower()
     j.core.db.hset(JUKEBOX_AUTO_EXTEND_KEY, f"{prefixed_tname}:{solution_type}:{deployment_name}", str(new_state))
+
+
+@app.route("/api/wallet", method="GET")
+@authenticated
+def get_wallet():
+    user_info = j.data.serializers.json.loads(get_user_info())
+    tname = user_info["username"]
+    prefixed_tname = f"{IDENTITY_PREFIX}_{tname.replace('.3bot', '')}"
+
+    data = jukebox.get_wallet_funding_info(prefixed_tname)
+    if not data:
+        return HTTPResponse(
+            j.data.serializers.json.dumps({"wallet": False}), status=404, headers={"Content-Type": "application/json"}
+        )
+
+    return j.data.serializers.json.dumps({"data": data})

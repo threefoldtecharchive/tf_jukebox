@@ -30,6 +30,7 @@ const code = httpVueLoader('./components/base/Code.vue')
 
 const app = httpVueLoader('./App.vue')
 const home = httpVueLoader('./components/JukeboxHome.vue')
+const wallet = httpVueLoader('./components/Wallet.vue')
 
 const license = httpVueLoader('./components/License.vue')
 const terms = httpVueLoader('./components/Terms.vue')
@@ -55,6 +56,7 @@ Vue.component("external", external)
 Vue.component("popup", popup)
 Vue.component("code-area", code)
 Vue.component("markdown-view", markdownViewer)
+Vue.component("wallet", wallet)
 
 const router = new VueRouter({
     routes: [

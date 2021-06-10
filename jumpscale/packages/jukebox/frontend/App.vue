@@ -7,6 +7,12 @@
         </v-row>
       </router-link>
       <v-spacer></v-spacer>
+
+      <v-btn text @click="showWallet()">
+        <v-icon left >mdi-bank</v-icon>
+        Fund Wallet
+      </v-btn>
+
       <v-menu v-model="menu" :close-on-content-click="false" offset-x>
         <template v-slot:activator="{ on }">
           <v-btn text v-on="on">
@@ -57,6 +63,8 @@
           </v-card-actions>
         </v-card>
       </v-menu>
+
+    <wallet-dialog v-if="dialogs.wallet" v-model="dialogs.wallet"></wallet-dialog>
     </v-app-bar>
 
     <v-main>
@@ -73,7 +81,14 @@ module.exports = {
       user: {},
       menu: false,
       mini: false,
+      walletInfo: null,
+      dialogs: {
+        wallet: false,
+      },
     };
+  },
+  components: {
+    "wallet-dialog": httpVueLoader("./components/Wallet.vue"),
   },
   computed: {},
   methods: {},
@@ -88,7 +103,10 @@ module.exports = {
       var backlen = history.length;
       history.go(-backlen);
       window.location.href = "/auth/logout";
-    }
+    },
+    showWallet() {
+      this.dialogs.wallet = true;
+    },
   },
   mounted() {
     this.getCurrentUser();

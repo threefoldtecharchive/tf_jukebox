@@ -49,6 +49,14 @@ const apiClient = {
     },
 
   },
+  wallet: {
+    getTopupInfo: () => {
+      return axios({
+        url: `${baseURL}//wallet`,
+        method: "get",
+      })
+    },
+  },
   license: {
     accept: () => {
       return axios({
