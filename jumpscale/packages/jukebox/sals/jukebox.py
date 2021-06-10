@@ -33,12 +33,13 @@ def on_exception(greenlet_thread):
     j.logger.error(message)
 
 
-flist_map = {
-    "digibyte": {"flist": "http"},
-    "dash": "",
-    "matic": "",
-    "ubuntu": "https://hub.grid.tf/tf-bootable/3bot-ubuntu-20.04.flist",
-}
+# flist_map = {
+#     "digibyte": {"flist": "http"},
+#     "dash": "",
+#     "matic": "",
+#     "ubuntu": "https://hub.grid.tf/tf-bootable/3bot-ubuntu-20.04.flist",
+#     "presearch": "https://hub.grid.tf/waleedhammam.3bot/arrajput-presearch-latest.flist",
+# }
 
 
 def get_or_create_user_wallet(wallet_name):
@@ -228,11 +229,14 @@ def deploy_all_containers(
     owner_tname,
     blockchain_type,
     env=None,
+    secret_env = None,
     metadata=None,
+    flist=None,
+    entry_point = "",
 ):
     metadata = metadata or {}
     env = env or {}
-
+    secret_env = secret_env or {}
     used_ip_addresses = defaultdict(lambda: [])  # {node_id:[ip_addresses]}
     # TODO when using multiple farms use GlobalScheduler instead and pass farm_name when deploying
     scheduler = Scheduler(farm_name=farm_name)
@@ -250,7 +254,18 @@ def deploy_all_containers(
         # START SPAWN
 
         thread = gevent.spawn(
-            deploy_container, network_name, identity_name, node, pool_id, ip_address, blockchain_type, env, metadata
+            deploy_container,
+            network_name,
+            identity_name,
+            node,
+            pool_id,
+            ip_address,
+            blockchain_type,
+            env,
+            metadata,
+            flist,
+            entry_point,
+            secret_env,
         )
         thread.link_exception(on_exception)
         deployment_threads.append(thread)
@@ -260,14 +275,24 @@ def deploy_all_containers(
 
 
 def deploy_container(
-    network_name, identity_name, node, pool_id, ip_address, blockchain_type="ubuntu", env=None, metadata=None
+    network_name,
+    identity_name,
+    node,
+    pool_id,
+    ip_address,
+    blockchain_type="ubuntu",
+    env=None,
+    metadata=None,
+    flist=None,
+    entry_point="",
+    secret_env=None,
 ):
     metadata = metadata or {}
     env = env or {}
-
-    flist = flist_map.get(blockchain_type)
+    secret_env = secret_env or {}
     if not flist:
-        raise Exception(f"Flist for {blockchain_type} not found")
+        raise Exception(f"Flist for {blockchain_type} not found, Please pass it")
+
     resv_id = deployer.deploy_container(
         identity_name=identity_name,
         pool_id=pool_id,
@@ -280,11 +305,12 @@ def deploy_container(
         disk_size=512,
         env=env,
         interactive=False,
-        entrypoint="/bin/bash /start.sh",
+        entrypoint=entry_point,
         # log_config=self.log_config,
         public_ipv6=True,
         **metadata,
         solution_uuid=uuid.uuid4().hex,
+        secret_env=secret_env,
     )
     success = deployer.wait_workload(resv_id, None)
     if not success:
