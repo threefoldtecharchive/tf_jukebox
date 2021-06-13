@@ -1,4 +1,5 @@
 from jumpscale.loader import j
+from textwrap import dedent
 from jumpscale.sals.chatflows.chatflows import chatflow_step
 from jumpscale.packages.jukebox.sals.jukebox_deploy_chatflow import JukeboxDeployChatflow
 
@@ -6,6 +7,8 @@ from jumpscale.packages.jukebox.sals.jukebox_deploy_chatflow import JukeboxDeplo
 class DigibyteDeploy(JukeboxDeployChatflow):
     title = "Digibyte"
     SOLUTION_TYPE = "digibyte"
+    QUERY = {"cru": 1, "sru": 1, "mru": 1}
+    ENTERY_POINT = "/start_dgb.sh"
     FLIST = "https://hub.grid.tf/ashraf.3bot/arrajput-digibyte-2.7.flist"
     steps = [
         "get_deployment_name",
@@ -13,31 +16,20 @@ class DigibyteDeploy(JukeboxDeployChatflow):
         "choose_farm",
         "set_expiration",
         "upload_public_key",
-        "rpc_credentials",
         "environment",
         "payment",
         "deploy",
         "success",
     ]
-    QUERY = {"cru": 1, "sru": 1, "mru": 1}
-    ENTERY_POINT = "/start_dgb.sh"
-    @chatflow_step(title="RPC Credentials")
-    def rpc_credentials(self):
-        form = self.new_form()
-        self.rpc_username = form.string_ask("RPC Username", required=True)
-        self.rpc_password = form.string_ask("RPC Password", required=True)
-        form.ask()
-
-        self.rpc_username = self.rpc_username.value
-        self.rpc_password = self.rpc_password.value
 
     @chatflow_step(title="User configurations")
     def environment(self):
         self.env = {
             "pub_key": self.public_key,
             }
+        self.rpc_password = j.data.idgenerator.idgenerator.chars(8)
         self.secret_env = {
-            "rpcuser": self.rpc_username,
+            "rpcuser": self.owner_tname,
             "rpcpasswd": self.rpc_password
         }
         self.metadata = {
@@ -48,5 +40,15 @@ class DigibyteDeploy(JukeboxDeployChatflow):
             },
         }
 
+    @chatflow_step(title="Success", disable_previous=True, final_step=True)
+    def success(self):
+        message = f"""\
+        # You deployed {self.nodes_count} nodes of {self.SOLUTION_TYPE}
+        <br />\n
+        your RPC credentials: <br />
+        username: {self.owner_tname}<br />
+        password: {self.rpc_password}<br />
+        """
+        self.md_show(dedent(message), md=True)
 
 chat = DigibyteDeploy
