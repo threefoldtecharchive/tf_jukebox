@@ -34,7 +34,7 @@
             <tr  v-if="wallet.qrcode">
                 <td>QRCode</td>
                 <td class="pt-1">
-                <div class="text-left ma-1">
+                <div class="text-left ma-1 qrcode">
                     <v-tooltip top>
                     <template v-slot:activator="{ on, attrs }" >
                         <img
@@ -49,6 +49,12 @@
                         application</span
                     >
                     </v-tooltip>
+
+                </div>
+                <div class="qrcode-warning" v-if="wallet.amount <= 0">
+                    <p>Warning: No solutions with auto extend enabled will expire within 2 days,
+                      if you still want to fund the wallet, adjust the amount after scanning the QRCode.
+                    </p>
                 </div>
                 </td>
             </tr>
@@ -91,3 +97,15 @@ module.exports = {
 
 };
 </script>
+
+<style type="text/css">
+.qrcode {
+  float: left;
+}
+.qrcode-warning {
+    vertical-align: middle;
+    text-align: center;
+    top: 40%;
+    position: relative;
+}
+</style>

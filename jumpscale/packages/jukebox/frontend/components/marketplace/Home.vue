@@ -1,19 +1,6 @@
 <template>
   <div>
     <template>
-      <v-dialog v-if="warningMessage" v-model="warningMessage" width="400">
-        <v-alert
-      v-if="warningMessage"
-      border="bottom"
-      colored-border
-      type="warning"
-      elevation="2"
-      align="center" justify="center" center
-      class="mb-0"
-    >
-      Sed in libero ut nibh placerat accumsan. Phasellus leo dolor, tempus non, auctor et, hendrerit quis, nisi. Phasellus leo dolor, tempus non, auctor et, hendrerit quis, nisi. Sed consequat, leo eget bibendum sodales, augue velit cursus nunc, quis gravida magna mi a libero. Donec elit libero, sodales nec, volutpat a, suscipit non, turpis.
-    </v-alert>
-      </v-dialog>
       <div class="combox">
         <v-row>
           <h1 class="mx-auto text-center white--text">
@@ -96,7 +83,6 @@ module.exports = {
       selectedObject: {},
       sections: SECTIONS,
       loggedin: this.$route.params.loggedin,
-      warningMessage: true,
     };
   },
   computed: {

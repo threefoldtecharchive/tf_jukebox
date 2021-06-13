@@ -109,7 +109,7 @@
         </v-card>
       </template>
     </base-component>
-    <cancel-deployment v-if="selected" v-model="dialogs.cancelDeployment" @done="getDeployedSolutions(solution.name)" :deploymentname="selected.name" :solutiontype="solution.name" ></cancel-deployment>
+    <cancel-deployment v-if="selected" v-model="dialogs.cancelDeployment" @done="getDeployedSolutions(type)" :deploymentname="selected.name" :solutiontype="type" ></cancel-deployment>
   </div>
 </template>
 

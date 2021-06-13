@@ -147,7 +147,7 @@ def list_deployments(solution_type: str) -> str:
     user_info = j.data.serializers.json.loads(get_user_info())
     tname = user_info["username"]
     prefixed_tname = f"{IDENTITY_PREFIX}_{tname.replace('.3bot', '')}"
-    deployments = jukebox.list_deployments(prefixed_tname, solution_type)[solution_type]
+    deployments = jukebox.list_deployments(prefixed_tname, solution_type.lower())[solution_type.lower()]
 
     return j.data.serializers.json.dumps({"data": deployments})
 

@@ -245,10 +245,10 @@ def deploy_all_containers(
     owner_tname,
     blockchain_type,
     env=None,
-    secret_env = None,
+    secret_env=None,
     metadata=None,
     flist=None,
-    entry_point = "",
+    entry_point="",
 ):
     metadata = metadata or {}
     env = env or {}
@@ -404,7 +404,7 @@ def delete_deployment(identity_name, solution_type, deployment_name):
 
     deleted_workloads = []
     # Delete workloads of the deployment with deployment_name
-    for deployment in deployments[solution_type]:
+    for deployment in deployments.get(solution_type, []):
         if deployment["name"] == deployment_name:
             for workload in deployment["workloads"]:
                 zos.workloads.decomission(workload["id"])
