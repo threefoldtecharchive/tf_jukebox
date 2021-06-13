@@ -396,11 +396,12 @@ def delete_deployment(identity_name, solution_type, deployment_name):
 
 
 def calculate_funding_amount(identity_name):
-    price = 0
+    total_price = 0
     zos = j.sals.zos.get(identity_name)
     deployments = list_deployments(identity_name)
     for deployments in deployments.values():
         for deployment in deployments:
+            price = 0
             if not deployment["autoextend"]:
                 continue
             if deployment["expiration"] > j.data.time.utcnow().timestamp + 60 * 60 * 24 * 2:
@@ -415,8 +416,10 @@ def calculate_funding_amount(identity_name):
                 "custom_cloudunits_price"
             ]
             price += zos._explorer.prices.calculate(cus=cus, sus=sus, ipv4us=ipv4us, farm_prices=farm_prices)
+            price *= 60 * 60 * 24 * 30
             price += TRANSACTION_FEES
-    return price * 60 * 60 * 24 * 30
+            total_price += price
+    return total_price
 
 
 def get_wallet_funding_info(identity_name):
@@ -424,16 +427,18 @@ def get_wallet_funding_info(identity_name):
     if not wallet:
         return {}
 
-    amount = calculate_funding_amount(identity_name)
+    asset = "TFT"
+    current_balance = wallet.get_balance_by_asset(asset)
+    amount = calculate_funding_amount(identity_name) - current_balance
+    amount = 0 if amount < 0 else round(amount, 6)
+
     qrcode_data = f"TFT:{wallet.address}?amount={amount}&message=topup&sender=me"
     qrcode_image = j.tools.qrcode.base64_get(qrcode_data, scale=3)
-    asset = "TFT"
 
-    current_balance = wallet.get_balance_by_asset(asset)
     data = {
         "address": wallet.address,
         "balance": {"amount": current_balance, "asset": asset},
-        "amount": round(amount - current_balance, 6),
+        "amount": amount,
         "qrcode": qrcode_image,
         "network": wallet.network.value,
     }

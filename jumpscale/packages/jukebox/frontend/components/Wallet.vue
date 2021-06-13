@@ -7,7 +7,7 @@
 
   >
     <template #default>
-        <strong v-if="!loading && wallet.amount >= 0"> Please fund your wallet for the extension of the pools to extend your nodes expiration with an amount of {{wallet.amount}} {{wallet.balance.asset}}</strong>
+        <strong v-if="!loading && wallet.amount > 0"> Please fund your wallet for the extension of the pools to extend your nodes expiration with an amount of {{wallet.amount}} {{wallet.balance.asset}}</strong>
 
         <v-simple-table >
         <template v-slot:default>
