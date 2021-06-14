@@ -180,15 +180,24 @@ def create_capacity_pool(wallet, cu=100, su=100, ipv4us=0, farm="freefarm", iden
 
 def get_container_ip(network_name, identity_name, node, pool_id, tname, excluded_ips=None):
     excluded_ips = excluded_ips or []
+    excluded_nodes = j.data.serializers.json.loads(j.core.db.get("excluded_nodes").decode())
+
     network_view = deployer.get_network_view(network_name, identity_name=identity_name)
     network_view_copy = network_view.copy()
-    result = deployer.add_network_node(
-        network_view.name, node, pool_id, network_view_copy, identity_name=identity_name, owner=tname
-    )
+    try:
+        result = deployer.add_network_node(
+            network_view.name, node, pool_id, network_view_copy, identity_name=identity_name, owner=tname
+        )
+    except Exception as e:
+        j.logger.exception(f"Failed to deploy network on {node.node_id}", exception=e)
+        excluded_nodes.add(node.node_id)
+        j.core.db.set("excluded_nodes", j.data.serializers.json.dumps(excluded_nodes), ex=3 * 60 * 60)
+        return
+
     if result:
         # self.md_show_update("Deploying Network on Nodes....")
         for wid in result["ids"]:
-            success = deployer.wait_workload(wid, None, breaking_node_id=node.node_id)
+            success = deployer.wait_workload(wid, None, breaking_node_id=node.node_id, expiry=3)
             if not success:
                 raise DeploymentFailed(f"Failed to add node {node.node_id} to network {wid}", wid=wid)
         network_view_copy = network_view_copy.copy()
@@ -215,7 +224,7 @@ def deploy_network(identity_name, pool_id, network_name, owner_tname, ip_range=N
                     identity_name=identity_name,
                     bot=None,
                     cancel_by_uuid=False,
-                    expiry=5,
+                    expiry=3,
                 )
                 network_success = network_success and success
             except Exception as e:
@@ -255,16 +264,17 @@ def deploy_all_containers(
     secret_env = secret_env or {}
     used_ip_addresses = defaultdict(lambda: [])  # {node_id:[ip_addresses]}
     # TODO when using multiple farms use GlobalScheduler instead and pass farm_name when deploying
+    excluded_nodes = list(j.data.serializers.json.loads(j.core.db.get("excluded_nodes").decode()))
     scheduler = Scheduler(farm_name=farm_name)
+    scheduler.exclude_nodes(*excluded_nodes)
     deployment_threads = []
-    for _ in range(number_of_deployments):
+    for i in range(number_of_deployments):
         # for each node check how many containers can be deployed on it, and based on that assign that node for X deployments
         pool_id = pool_ids[0]  # TODO
         node = next(scheduler.nodes_by_capacity(cru=cru, sru=sru, mru=mru))
 
         excluded_ips = used_ip_addresses.get(node.node_id, [])
         ip_address = get_container_ip(network_name, identity_name, node, pool_id, owner_tname, excluded_ips)
-
         used_ip_addresses[node.node_id].append(ip_address)
 
         # START SPAWN
@@ -328,7 +338,7 @@ def deploy_container(
         solution_uuid=uuid.uuid4().hex,
         secret_env=secret_env,
     )
-    success = deployer.wait_workload(resv_id, None)
+    success = deployer.wait_workload(resv_id, None, expiry=3)
     if not success:
         raise DeploymentFailed(f"Failed to deploy workload {resv_id}", wid=resv_id)
     print(f"succeeded, {resv_id}")
@@ -416,7 +426,7 @@ def delete_deployment(identity_name, solution_type, deployment_name):
 
     # Wait for all workloads to be deleted successfully
     for wid in deleted_workloads:
-        success = success and deployer.wait_workload_deletion(wid, identity_name=identity_name)
+        success = success and deployer.wait_workload_deletion(wid, identity_name=identity_name, expiry=3)
 
     return success
 
