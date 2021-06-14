@@ -116,7 +116,7 @@ def accept():
         user_entry.explorer_url = explorer_url
         user_entry.tname = tname
         user_entry.save()
-
+        jukebox.get_or_create_user_wallet(f"jukebox_{j.data.text.removesuffix(tname, '.3bot')}")
         create_intermediate_identity(tname=tname, email=user_info["email"], explorer_url=explorer_url)
         return HTTPResponse(
             j.data.serializers.json.dumps({"allowed": True}), status=201, headers={"Content-Type": "application/json"}
@@ -133,6 +133,7 @@ def allowed():
     instances = user_factory.list_all()
     for name in instances:
         user_entry = user_factory.get(name)
+        jukebox.get_or_create_user_wallet(f"jukebox_{j.data.text.removesuffix(tname, '.3bot')}")
         if user_entry.tname == tname and user_entry.explorer_url == explorer_url and user_entry.has_agreed:
             create_intermediate_identity(
                 tname=tname, email=user_info["email"], explorer_url=explorer_url
