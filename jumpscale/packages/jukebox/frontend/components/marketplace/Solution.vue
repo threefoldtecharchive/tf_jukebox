@@ -81,6 +81,18 @@
                   </template>
                   <span>Delete</span>
                 </v-tooltip>
+                <v-tooltip top>
+                  <template v-slot:activator="{ on, attrs }">
+                    <div v-bind="attrs" v-on="on" class="switch-div" >
+                    <v-switch
+                      v-model="item.autoextend"
+                      @click.stop="switchAutoExtend(item)"
+                      dense
+                    ></v-switch>
+                    </div>
+                  </template>
+                  <span>Auto Extend Deployment</span>
+                </v-tooltip>
                 <v-tooltip top v-if="item.active_workloads !== item.total">
                   <template v-slot:activator="{ on, attrs }">
                     <v-icon v-bind="attrs" v-on="on" color="#810000"
@@ -97,7 +109,7 @@
         </v-card>
       </template>
     </base-component>
-    <cancel-deployment v-if="selected" v-model="dialogs.cancelDeployment" @done="getDeployedSolutions(solution.name)" :deploymentname="selected.name" :solutiontype="solution.name" ></cancel-deployment>
+    <cancel-deployment v-if="selected" v-model="dialogs.cancelDeployment" @done="getDeployedSolutions(type)" :deploymentname="selected.name" :solutiontype="type" ></cancel-deployment>
   </div>
 </template>
 
@@ -121,7 +133,9 @@ module.exports = {
       mainheaders: [
         { text: "Deployment Name", value: "name" },
         { text: "Farm Name", value: "farm" },
+        { text: "Pool ID", value: "pool_id" },
         { text: "Total Nodes", value: "total" },
+        { text: "Expiration Date", value: "expiration" },
         { text: "Actions", value: "actions", sortable: false },
         { text: "", value: "data-table-expand" },
       ],
@@ -178,6 +192,9 @@ module.exports = {
           for (let i = 0; i < this.deployedSolutions.length; i++) {
             this.deployedSolutions[i]["total"] =
               this.deployedSolutions[i].metadata.number_of_nodes;
+            this.deployedSolutions[i].expiration = new Date(
+              this.deployedSolutions[i].expiration * 1000
+            ).toLocaleString("en-GB");
             for (
               let j = 0;
               j < this.deployedSolutions[i].workloads.length;
@@ -201,6 +218,17 @@ module.exports = {
           this.loading = false;
         });
     },
+    switchAutoExtend(item) {
+      this.loading = false;
+      this.$api.solutions
+        .switchAutoExtend(item.name, this.type, item.autoextend)
+        .then((response) => {
+          this.getDeployedSolutions(this.type);
+        })
+        .finally(() => {
+          this.loading = false;
+        });
+    },
   },
   mounted() {
     this.getDeployedSolutions(this.type);
@@ -218,5 +246,9 @@ a.chatflowInfo {
 
 .v-data-table__expanded.v-data-table__expanded__content {
   box-shadow: none !important;
+}
+.switch-div {
+display: inline-block;
+padding-left: 10px;
 }
 </style>

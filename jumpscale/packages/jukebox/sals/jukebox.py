@@ -6,12 +6,27 @@ from time import sleep
 import uuid
 
 import gevent
-from jumpscale.clients.explorer.models import Container, DiskType, NextAction, WorkloadType
+from jumpscale.clients.explorer.models import (
+    Container,
+    DiskType,
+    NextAction,
+    WorkloadType,
+)
 from jumpscale.core.base import Base, fields
 from jumpscale.loader import j
-from jumpscale.sals.reservation_chatflow import DeploymentFailed, deployer, deployment_context, solutions
+from jumpscale.sals.reservation_chatflow import (
+    DeploymentFailed,
+    deployer,
+    deployment_context,
+    solutions,
+)
 
-from jumpscale.sals.vdc.scheduler import GlobalCapacityChecker, GlobalScheduler, Scheduler
+from jumpscale.sals.vdc.scheduler import (
+    GlobalCapacityChecker,
+    GlobalScheduler,
+    Scheduler,
+)
+from jumpscale.clients.stellar import TRANSACTION_FEES
 
 # 1. create pool
 # 2. create network
@@ -21,6 +36,7 @@ from jumpscale.sals.vdc.scheduler import GlobalCapacityChecker, GlobalScheduler,
 
 CURRENCIES = ["TFT"]
 IDENTITY_PREFIX = "jukebox"
+JUKEBOX_AUTO_EXTEND_KEY = "jukebox:auto_extend"
 
 
 def on_exception(greenlet_thread):
@@ -229,10 +245,10 @@ def deploy_all_containers(
     owner_tname,
     blockchain_type,
     env=None,
-    secret_env = None,
+    secret_env=None,
     metadata=None,
     flist=None,
-    entry_point = "",
+    entry_point="",
 ):
     metadata = metadata or {}
     env = env or {}
@@ -326,6 +342,7 @@ def _get_farm_name(pool_id, identity_name):
 
 
 def _filter_deployments(workloads, identity_name, solution_type=None):
+    zos = j.sals.zos.get(identity_name)
     deployments = defaultdict(lambda: [])
     for workload in workloads:
         if workload.info.workload_type == WorkloadType.Container:
@@ -346,8 +363,22 @@ def _filter_deployments(workloads, identity_name, solution_type=None):
                         break
                 else:
                     farm_name = _get_farm_name(workload.info.pool_id, identity_name)
+                    pool = zos.pools.get(workload.info.pool_id)
+                    expiration = pool.empty_at
+                    auto_extend = j.core.db.hget(
+                        JUKEBOX_AUTO_EXTEND_KEY, f"{identity_name}:{workload_solution_type}:{name}"
+                    )
+                    auto_extend = True if auto_extend == b"True" else False
                     deployments[workload_solution_type].append(
-                        {"name": name, "metadata": form_info, "farm": farm_name, "workloads": [workload.to_dict()]}
+                        {
+                            "name": name,
+                            "metadata": form_info,
+                            "farm": farm_name,
+                            "expiration": expiration,
+                            "pool_id": pool.pool_id,
+                            "autoextend": auto_extend,
+                            "workloads": [workload.to_dict()],
+                        }
                     )
 
     return deployments
@@ -373,7 +404,7 @@ def delete_deployment(identity_name, solution_type, deployment_name):
 
     deleted_workloads = []
     # Delete workloads of the deployment with deployment_name
-    for deployment in deployments[solution_type]:
+    for deployment in deployments.get(solution_type, []):
         if deployment["name"] == deployment_name:
             for workload in deployment["workloads"]:
                 zos.workloads.decomission(workload["id"])
@@ -388,3 +419,53 @@ def delete_deployment(identity_name, solution_type, deployment_name):
         success = success and deployer.wait_workload_deletion(wid, identity_name=identity_name)
 
     return success
+
+
+def calculate_funding_amount(identity_name):
+    total_price = 0
+    zos = j.sals.zos.get(identity_name)
+    deployments = list_deployments(identity_name)
+    for deployments in deployments.values():
+        for deployment in deployments:
+            price = 0
+            if not deployment["autoextend"]:
+                continue
+            if deployment["expiration"] > j.data.time.utcnow().timestamp + 60 * 60 * 24 * 2:
+                continue
+            pool_id = deployment["pool_id"]
+            pool = zos.pools.get(pool_id)
+            cus = pool.active_cu
+            sus = pool.active_su
+            ipv4us = pool.active_ipv4
+            farm_id = zos._explorer.farms.get(farm_name=deployment["farm"]).id
+            farm_prices = zos._explorer.farms.get_deal_for_threebot(farm_id, j.core.identity.me.tid)[
+                "custom_cloudunits_price"
+            ]
+            price += zos._explorer.prices.calculate(cus=cus, sus=sus, ipv4us=ipv4us, farm_prices=farm_prices)
+            price *= 60 * 60 * 24 * 30
+            price += TRANSACTION_FEES
+            total_price += price
+    return total_price
+
+
+def get_wallet_funding_info(identity_name):
+    wallet = j.clients.stellar.get(identity_name)
+    if not wallet:
+        return {}
+
+    asset = "TFT"
+    current_balance = wallet.get_balance_by_asset(asset)
+    amount = calculate_funding_amount(identity_name) - current_balance
+    amount = 0 if amount < 0 else round(amount, 6)
+
+    qrcode_data = f"TFT:{wallet.address}?amount={amount}&message=topup&sender=me"
+    qrcode_image = j.tools.qrcode.base64_get(qrcode_data, scale=3)
+
+    data = {
+        "address": wallet.address,
+        "balance": {"amount": current_balance, "asset": asset},
+        "amount": amount,
+        "qrcode": qrcode_image,
+        "network": wallet.network.value,
+    }
+    return data

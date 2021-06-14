@@ -18,6 +18,7 @@ app = Bottle()
 THREEFOLD_LOGIN_URL = "https://login.threefold.me/api"
 
 IDENTITY_PREFIX = "jukebox"
+JUKEBOX_AUTO_EXTEND_KEY = "jukebox:auto_extend"
 
 
 @app.route("/api/status", method="GET")
@@ -146,7 +147,7 @@ def list_deployments(solution_type: str) -> str:
     user_info = j.data.serializers.json.loads(get_user_info())
     tname = user_info["username"]
     prefixed_tname = f"{IDENTITY_PREFIX}_{tname.replace('.3bot', '')}"
-    deployments = jukebox.list_deployments(prefixed_tname, solution_type)[solution_type]
+    deployments = jukebox.list_deployments(prefixed_tname, solution_type.lower())[solution_type.lower()]
 
     return j.data.serializers.json.dumps({"data": deployments})
 
@@ -164,3 +165,33 @@ def cancel_deployment() -> str:
 
     jukebox.delete_deployment(prefixed_tname, solution_type, deployment_name)
     return j.data.serializers.json.dumps({"data": {}})
+
+
+@app.route("/api/deployments/switch_auto_extend", method="POST")
+@package_authorized("jukebox")
+def switch_auto_extend() -> str:
+    user_info = j.data.serializers.json.loads(get_user_info())
+    tname = user_info["username"]
+    prefixed_tname = f"{IDENTITY_PREFIX}_{tname.replace('.3bot', '')}"
+
+    data = j.data.serializers.json.loads(request.body.read())
+    deployment_name = data.get("name")
+    new_state = data.get("new_state", False)
+    solution_type = data.get("solution_type", "").lower()
+    j.core.db.hset(JUKEBOX_AUTO_EXTEND_KEY, f"{prefixed_tname}:{solution_type}:{deployment_name}", str(new_state))
+
+
+@app.route("/api/wallet", method="GET")
+@authenticated
+def get_wallet():
+    user_info = j.data.serializers.json.loads(get_user_info())
+    tname = user_info["username"]
+    prefixed_tname = f"{IDENTITY_PREFIX}_{tname.replace('.3bot', '')}"
+
+    data = jukebox.get_wallet_funding_info(prefixed_tname)
+    if not data:
+        return HTTPResponse(
+            j.data.serializers.json.dumps({"wallet": False}), status=404, headers={"Content-Type": "application/json"}
+        )
+
+    return j.data.serializers.json.dumps({"data": data})

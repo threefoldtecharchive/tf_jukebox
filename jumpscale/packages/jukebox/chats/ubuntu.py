@@ -8,6 +8,7 @@ class UbuntuDeploy(JukeboxDeployChatflow):
     # IMAGES = ["ubuntu-18.04", "ubuntu-20.04"]
     title = "Ubuntu"
     SOLUTION_TYPE = "ubuntu"
+    ENTERY_POINT = "/bin/bash /start.sh"
     FLIST = f"https://hub.grid.tf/tf-bootable/3bot-ubuntu-20.04.flist"
     steps = [
         "get_deployment_name",
@@ -32,6 +33,7 @@ class UbuntuDeploy(JukeboxDeployChatflow):
                 "number_of_nodes": self.nodes_count,
             },
         }
+        self.secret_env = {}
 
 
 chat = UbuntuDeploy
