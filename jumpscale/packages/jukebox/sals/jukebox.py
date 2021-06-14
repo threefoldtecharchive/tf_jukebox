@@ -424,7 +424,7 @@ def delete_deployment(identity_name, solution_type, deployment_name):
 def calculate_funding_amount(identity_name):
     identity = j.core.identity.find(identity_name)
     if not identity:
-        return {}
+        return 0
     total_price = 0
     zos = j.sals.zos.get(identity_name)
     deployments = list_deployments(identity_name)
