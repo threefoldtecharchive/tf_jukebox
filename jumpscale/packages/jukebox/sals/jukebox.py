@@ -180,7 +180,11 @@ def create_capacity_pool(wallet, cu=100, su=100, ipv4us=0, farm="freefarm", iden
 
 def get_container_ip(network_name, identity_name, node, pool_id, tname, excluded_ips=None):
     excluded_ips = excluded_ips or []
-    excluded_nodes = j.data.serializers.json.loads(j.core.db.get("excluded_nodes").decode())
+    excluded_nodes = j.core.db.get("excluded_nodes")
+    if not excluded_nodes:
+        excluded_nodes = set()
+    else:
+        excluded_nodes = j.data.serializers.json.loads(excluded_nodes.decode())
 
     network_view = deployer.get_network_view(network_name, identity_name=identity_name)
     network_view_copy = network_view.copy()
@@ -192,7 +196,7 @@ def get_container_ip(network_name, identity_name, node, pool_id, tname, excluded
         j.logger.exception(f"Failed to deploy network on {node.node_id}", exception=e)
         excluded_nodes.add(node.node_id)
         j.core.db.set("excluded_nodes", j.data.serializers.json.dumps(excluded_nodes), ex=3 * 60 * 60)
-        return
+        raise DeploymentFailed(f"Failed to add node {node.node_id} to network")
 
     if result:
         # self.md_show_update("Deploying Network on Nodes....")
@@ -264,7 +268,11 @@ def deploy_all_containers(
     secret_env = secret_env or {}
     used_ip_addresses = defaultdict(lambda: [])  # {node_id:[ip_addresses]}
     # TODO when using multiple farms use GlobalScheduler instead and pass farm_name when deploying
-    excluded_nodes = list(j.data.serializers.json.loads(j.core.db.get("excluded_nodes").decode()))
+    excluded_nodes = j.core.db.get("excluded_nodes")
+    if not j.core.db.get("excluded_nodes"):
+        excluded_nodes = set()
+    else:
+        excluded_nodes = list(j.data.serializers.json.loads(excluded_nodes.decode()))
     scheduler = Scheduler(farm_name=farm_name)
     scheduler.exclude_nodes(*excluded_nodes)
     deployment_threads = []
