@@ -63,7 +63,7 @@ def get_or_create_user_wallet(wallet_name):
     if not j.clients.stellar.find(wallet_name):
         wallet = j.clients.stellar.new(wallet_name)
         try:
-            wallet.activate_through_threefold_service()
+            wallet.activate_through_activation_wallet()
         except Exception:
             j.clients.stellar.delete(name=wallet_name)
             raise j.exceptions.JSException("Error on wallet activation")
