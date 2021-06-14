@@ -23,7 +23,7 @@ is_admin = false
 
 [[servers]]
 name = "root"
-domain = "jukebox.threefoldtoken.com"
+domain = "jukebox.devnet.grid.tf"
 letsencryptemail = "testemail@gmail.com"
 includes = ["default_443.chatflows_*", "default_443.auth_*", "default_443.jukebox_*"]
 
