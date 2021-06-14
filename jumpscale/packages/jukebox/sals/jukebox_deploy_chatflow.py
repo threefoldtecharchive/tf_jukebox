@@ -156,7 +156,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
 
             pool_ids = [pool_rev_id]
         except Exception as e:
-            j.logger.error(f"Failed to deploy", exception=e)
+            j.logger.exception(f"Failed to deploy", exception=e)
             j.sals.billing.issue_refund(self.payment_id)
             self.stop("Failed to deploy")
 
@@ -184,9 +184,8 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
             env=self.env,
             metadata=self.metadata,
             flist=self.FLIST,
-            entry_point = self.ENTRY_POINT,
+            entry_point=self.ENTRY_POINT,
             secret_env=self.secret_env,
-
         )
 
     @chatflow_step(title="Success", disable_previous=True, final_step=True)
