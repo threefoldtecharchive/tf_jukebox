@@ -449,7 +449,7 @@ def calculate_funding_amount(identity_name):
 
 
 def get_wallet_funding_info(identity_name):
-    wallet = j.clients.stellar.get(identity_name)
+    wallet = j.clients.stellar.find(identity_name)
     if not wallet:
         return {}
 
