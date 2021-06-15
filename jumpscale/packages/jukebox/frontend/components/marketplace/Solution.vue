@@ -249,6 +249,5 @@ a.chatflowInfo {
 }
 .switch-div {
 display: inline-block;
-padding-left: 10px;
 }
 </style>
