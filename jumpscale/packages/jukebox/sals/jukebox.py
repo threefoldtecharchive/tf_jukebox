@@ -182,29 +182,31 @@ def get_container_ip(network_name, identity_name, node, pool_id, tname, excluded
     excluded_ips = excluded_ips or []
     excluded_nodes = j.core.db.get("excluded_nodes")
     if not excluded_nodes:
-        excluded_nodes = set()
+        excluded_nodes = []
     else:
         excluded_nodes = j.data.serializers.json.loads(excluded_nodes.decode())
 
     network_view = deployer.get_network_view(network_name, identity_name=identity_name)
     network_view_copy = network_view.copy()
-    try:
-        result = deployer.add_network_node(
-            network_view.name, node, pool_id, network_view_copy, identity_name=identity_name, owner=tname
-        )
-    except Exception as e:
-        j.logger.exception(f"Failed to deploy network on {node.node_id}", exception=e)
-        excluded_nodes.add(node.node_id)
-        j.core.db.set("excluded_nodes", j.data.serializers.json.dumps(excluded_nodes), ex=3 * 60 * 60)
-        raise DeploymentFailed(f"Failed to add node {node.node_id} to network")
+    result = deployer.add_network_node(
+        network_view.name, node, pool_id, network_view_copy, identity_name=identity_name, owner=tname
+    )
 
     if result:
         # self.md_show_update("Deploying Network on Nodes....")
-        for wid in result["ids"]:
-            success = deployer.wait_workload(wid, None, breaking_node_id=node.node_id, expiry=3)
-            if not success:
-                raise DeploymentFailed(f"Failed to add node {node.node_id} to network {wid}", wid=wid)
-        network_view_copy = network_view_copy.copy()
+        try:
+            for wid in result["ids"]:
+                success = deployer.wait_workload(wid, None, breaking_node_id=node.node_id, expiry=3)
+                if not success:
+                    raise DeploymentFailed(f"Failed to add node {node.node_id} to network {wid}", wid=wid)
+        except Exception as e:
+            j.logger.exception(f"Failed to deploy network on {node.node_id}", exception=e)
+            excluded_nodes = set(excluded_nodes)
+            excluded_nodes.add(node.node_id)
+            j.core.db.set("excluded_nodes", j.data.serializers.json.dumps(list(excluded_nodes)), ex=3 * 60 * 60)
+            raise DeploymentFailed(f"Failed to add node {node.node_id} to network")
+
+    network_view_copy = network_view_copy.copy()
     free_ips = network_view_copy.get_node_free_ips(node)
     for ip in free_ips:
         if ip not in excluded_ips:
@@ -270,9 +272,9 @@ def deploy_all_containers(
     # TODO when using multiple farms use GlobalScheduler instead and pass farm_name when deploying
     excluded_nodes = j.core.db.get("excluded_nodes")
     if not j.core.db.get("excluded_nodes"):
-        excluded_nodes = set()
+        excluded_nodes = []
     else:
-        excluded_nodes = list(j.data.serializers.json.loads(excluded_nodes.decode()))
+        excluded_nodes = j.data.serializers.json.loads(excluded_nodes.decode())
     scheduler = Scheduler(farm_name=farm_name)
     scheduler.exclude_nodes(*excluded_nodes)
     deployment_threads = []
