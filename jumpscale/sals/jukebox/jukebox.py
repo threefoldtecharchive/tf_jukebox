@@ -3,12 +3,7 @@ from time import sleep
 import uuid
 
 import gevent
-from jumpscale.clients.explorer.models import (
-    Container,
-    DiskType,
-    NextAction,
-    WorkloadType,
-)
+from jumpscale.clients.explorer.models import Container, DiskType, NextAction, WorkloadType
 from jumpscale.clients.explorer.models import DiskType, State as WorkloadState
 from jumpscale.clients.stellar import TRANSACTION_FEES
 from jumpscale.core.base import Base, fields
@@ -132,90 +127,56 @@ def show_payment(bot, cost, wallet_name, expiry=5, description=None):
     return True, cost, payment_id
 
 
-def _filter_deployments(identity_name, workloads, solution_type=None):
-    zos = j.sals.zos.get(identity_name)
-    deployments = defaultdict(lambda: [])
-    for workload in workloads:
-        if workload.info.workload_type == WorkloadType.Container:
-            metadata = j.sals.reservation_chatflow.deployer.decrypt_metadata(workload.info.metadata, self.identity_name)
-            try:
-                metadata_dict = j.data.serializers.json.loads(metadata)
-            except Exception as e:
-                continue
-            if not metadata_dict.get("form_info"):
-                continue
-            form_info = metadata_dict["form_info"]
-            workload_solution_type = form_info["chatflow"]
-            name = form_info["Solution name"]
-            if (solution_type and solution_type == workload_solution_type) or not solution_type:
-                for deployment in deployments[workload_solution_type]:
-                    if name == deployment["name"]:
-                        deployment["workloads"].append(workload.to_dict())
-                        break
-                else:
-                    farm_name = _get_farm_name(identity_name, workload.info.pool_id)
-                    pool = zos.pools.get(workload.info.pool_id)
-                    expiration = pool.empty_at
-                    auto_extend = j.core.db.hget(
-                        JUKEBOX_AUTO_EXTEND_KEY, f"{identity_name}:{workload_solution_type}:{name}"
-                    )
-                    auto_extend = True if auto_extend == b"True" else False
-                    deployments[workload_solution_type].append(
-                        {
-                            "name": name,
-                            "metadata": form_info,
-                            "farm": farm_name,
-                            "expiration": expiration,
-                            "pool_id": pool.pool_id,
-                            "autoextend": auto_extend,
-                            "workloads": [workload.to_dict()],
-                        }
-                    )
-
-    return deployments
-
-
-def _get_farm_name(identity_name, pool_id):
-    zos = j.sals.zos.get(identity_name)
-    farm_id = j.sals.reservation_chatflow.deployer.get_pool_farm_id(pool_id=pool_id)
-    return zos._explorer.farms.get(farm_id).name
-
-
-# listing
-def list_deployments(self, identity_name, solution_type=None):
-    identity_name = j.data.text.removesuffix(self.identity_name, ".3bot")
+def calculate_funding_amount(identity_name):
     identity = j.core.identity.find(identity_name)
+    zos = j.sals.zos.get(identity_name)
     if not identity:
+        return 0
+    total_price = 0
+    deployments = j.sals.jukebox.list(identity_name=identity_name)
+    for deployment in deployments:
+        price = 0
+        if not deployment.auto_extend:
+            continue
+        if deployment.expiration_date > j.data.time.utcnow().timestamp + 60 * 60 * 24 * 2:
+            continue
+        pool_id = deployment.pool_ids[0]  # TODO change when having multiple pools
+        pool = zos.pools.get(pool_id)  # TODO: set active unit while listing
+        cus = pool.active_cu
+        sus = pool.active_su
+        ipv4us = pool.active_ipv4
+        farm_id = zos._explorer.farms.get(farm_name=deployment.farm).id
+        farm_prices = zos._explorer.farms.get_deal_for_threebot(farm_id, j.core.identity.me.tid)[
+            "custom_cloudunits_price"
+        ]
+        price += zos._explorer.prices.calculate(cus=cus, sus=sus, ipv4us=ipv4us, farm_prices=farm_prices)
+        price *= 60 * 60 * 24 * 30
+        price += TRANSACTION_FEES
+        total_price += price
+    return total_price
+
+
+def get_wallet_funding_info(identity_name):
+    wallet = j.clients.stellar.find(identity_name)
+    if not wallet:
         return {}
 
-    zos = j.sals.zos.get(identity_name)
-    workloads = zos.workloads.list_workloads(identity.tid, NextAction.DEPLOY)
-    return self._filter_deployments(identity_name, workloads, solution_type)
+    asset = "TFT"
+    current_balance = wallet.get_balance_by_asset(asset)
+    amount = calculate_funding_amount(identity_name) - current_balance
+    amount = 0 if amount < 0 else round(amount, 6)
 
+    qrcode_data = f"TFT:{wallet.address}?amount={amount}&message=topup&sender=me"
+    qrcode_image = j.tools.qrcode.base64_get(qrcode_data, scale=3)
 
-def delete_deployment(self, identity_name, solution_type, deployment_name):
-    zos = j.sals.zos.get(identity_name)
-    deployments = self.list_deployments(solution_type)
-    if solution_type not in deployments:
-        return False
-
-    deleted_workloads = []
-    # Delete workloads of the deployment with deployment_name
-    for deployment in deployments.get(solution_type, []):
-        if deployment["name"] == deployment_name:
-            for workload in deployment["workloads"]:
-                zos.workloads.decomission(workload["id"])
-                deleted_workloads.append(workload["id"])
-            success = True
-            break
-    else:
-        success = False
-
-    # Wait for all workloads to be deleted successfully
-    for wid in deleted_workloads:
-        success = success and deployer.wait_workload_deletion(wid, identity_name=identity_name, expiry=3)
-
-    return success
+    data = {
+        "address": wallet.address,
+        "balance": {"amount": current_balance, "asset": asset},
+        "amount": amount,
+        "qrcode": qrcode_image,
+        "network": wallet.network.value,
+    }
+    return data
 
 
 class JukeboxDeployment(Base):
@@ -240,27 +201,6 @@ class JukeboxDeployment(Base):
         if self._zos is None:
             self._zos = j.sals.zos.get(self.identity_name)
         return self._zos
-
-    # def create_empty_pool(self, identity_name, farm="freefarm"):
-    #     # create a pool for the user if the pool doesn't exist
-    #     zos = j.sals.zos.get(identity_name)
-    #     if not zos.pools.list():
-    #         payment_detail = zos.pools.create(cu=0, su=0, ipv4us=0, farm=farm)
-    #         return payment_detail.reservation_id
-    #     else:
-    #         return zos.pools.list()[0].pool_id
-
-    # def calculate_payment_from_payment_info(self, payment_info):
-    #     escrow_info = payment_info.escrow_information
-    #     resv_id = payment_info.reservation_id
-    #     escrow_address = escrow_info.address
-    #     escrow_asset = escrow_info.asset
-    #     total_amount = escrow_info.amount
-    #     if not total_amount:
-    #         return 0
-    #     total_amount_dec = Decimal(total_amount) / Decimal(1e7)
-    #     total_amount = "{0:f}".format(total_amount_dec)
-    #     return escrow_address, total_amount, escrow_asset
 
     def create_capacity_pool(self, wallet, cu=100, su=100, ipv4us=0, farm="freefarm"):
         payment_detail = self.zos.pools.create(cu=cu, su=su, ipv4us=ipv4us, farm=farm)
@@ -403,6 +343,9 @@ class JukeboxDeployment(Base):
                 flist,
                 entry_point,
                 secret_env,
+                cru,
+                sru * 1024,
+                mru * 1024,
             )
             thread.link_exception(on_exception)
             deployment_threads.append(thread)
@@ -422,6 +365,9 @@ class JukeboxDeployment(Base):
         flist=None,
         entry_point="",
         secret_env=None,
+        cpu=1,
+        memory=1024,
+        disk_size=512,
     ):
         metadata = metadata or {}
         env = env or {}
@@ -436,9 +382,9 @@ class JukeboxDeployment(Base):
             network_name=network_name,
             ip_address=ip_address,
             flist=flist,
-            cpu=1,
-            memory=1024,
-            disk_size=512,
+            cpu=cpu,
+            memory=memory,
+            disk_size=disk_size,
             env=env,
             interactive=False,
             entrypoint=entry_point,
@@ -471,53 +417,3 @@ class JukeboxDeployment(Base):
         return resv_id
 
     # TODO: add method to delete workload
-
-    def calculate_funding_amount(self):
-        identity = j.core.identity.find(self.identity_name)
-        if not identity:
-            return 0
-        total_price = 0
-        deployments = self.list_deployments()
-        for deployments in deployments.values():
-            for deployment in deployments:
-                price = 0
-                if not deployment["autoextend"]:
-                    continue
-                if deployment["expiration"] > j.data.time.utcnow().timestamp + 60 * 60 * 24 * 2:
-                    continue
-                pool_id = deployment["pool_id"]
-                pool = self.zos.pools.get(pool_id)  # TODO: set active unit while listing
-                cus = pool.active_cu
-                sus = pool.active_su
-                ipv4us = pool.active_ipv4
-                farm_id = self.zos._explorer.farms.get(farm_name=deployment["farm"]).id
-                farm_prices = self.zos._explorer.farms.get_deal_for_threebot(farm_id, j.core.identity.me.tid)[
-                    "custom_cloudunits_price"
-                ]
-                price += self.zos._explorer.prices.calculate(cus=cus, sus=sus, ipv4us=ipv4us, farm_prices=farm_prices)
-                price *= 60 * 60 * 24 * 30
-                price += TRANSACTION_FEES
-                total_price += price
-        return total_price
-
-    def get_wallet_funding_info(self):
-        wallet = j.clients.stellar.find(self.identity_name)
-        if not wallet:
-            return {}
-
-        asset = "TFT"
-        current_balance = wallet.get_balance_by_asset(asset)
-        amount = self.calculate_funding_amount() - current_balance
-        amount = 0 if amount < 0 else round(amount, 6)
-
-        qrcode_data = f"TFT:{wallet.address}?amount={amount}&message=topup&sender=me"
-        qrcode_image = j.tools.qrcode.base64_get(qrcode_data, scale=3)
-
-        data = {
-            "address": wallet.address,
-            "balance": {"amount": current_balance, "asset": asset},
-            "amount": amount,
-            "qrcode": qrcode_image,
-            "network": wallet.network.value,
-        }
-        return data

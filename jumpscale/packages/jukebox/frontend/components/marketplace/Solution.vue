@@ -60,7 +60,7 @@
                     <v-data-table
                       :loading="loading"
                       :headers="workloadHeaders"
-                      :items="item.workloads"
+                      :items="item.nodes"
                       class="elevation-1"
                       hide-default-footer
 
@@ -93,13 +93,13 @@
                   </template>
                   <span>Auto Extend Deployment</span>
                 </v-tooltip>
-                <v-tooltip top v-if="item.active_workloads !== item.total">
+                <v-tooltip top v-if="item.activeworkloads !== item.total">
                   <template v-slot:activator="{ on, attrs }">
                     <v-icon v-bind="attrs" v-on="on" color="#810000"
                       >mdi-alert-outline</v-icon
                     >
                   </template>
-                  <span>{{ item.total - item.active_workloads }} node(s) of this deployment went down</span>
+                  <span>{{ item.total - item.activeworkloads }} node(s) of this deployment went down</span>
                 </v-tooltip>
               </template>
 
@@ -133,15 +133,16 @@ module.exports = {
       mainheaders: [
         { text: "Deployment Name", value: "name" },
         { text: "Farm Name", value: "farm" },
-        { text: "Pool ID", value: "pool_id" },
+        { text: "Pool ID", value: "pool" },
         { text: "Total Nodes", value: "total" },
         { text: "Expiration Date", value: "expiration" },
         { text: "Actions", value: "actions", sortable: false },
         { text: "", value: "data-table-expand" },
       ],
       workloadHeaders: [
-        { text: "Id", value: "id" },
-        { text: "IP address", value: "ip" },
+        { text: "Id", value: "wid" },
+        { text: "IPv4 address", value: "ipv4" },
+        { text: "IPv6 address", value: "ipv6" },
         { text: "Cpu", value: "cpu" },
         { text: "Memory /MB", value: "memory" },
         { text: "Disk Size /MB", value: "disk" },
@@ -190,28 +191,40 @@ module.exports = {
           this.deployedSolutions = response.data.data;
 
           for (let i = 0; i < this.deployedSolutions.length; i++) {
-            this.deployedSolutions[i]["total"] =
-              this.deployedSolutions[i].metadata.number_of_nodes;
+            this.deployedSolutions[i].pool = this.deployedSolutions[i].pool_ids[0]
             this.deployedSolutions[i].expiration = new Date(
-              this.deployedSolutions[i].expiration * 1000
+              this.deployedSolutions[i].expiration_date * 1000
             ).toLocaleString("en-GB");
+            this.deployedSolutions[i].autoextend = this.deployedSolutions[i].auto_extend
+            this.deployedSolutions[i].name = this.deployedSolutions[i].deployment_name
+            this.deployedSolutions[i].farm = this.deployedSolutions[i].farm_name
+
+            this.deployedSolutions[i]["total"] = this.deployedSolutions[i].nodes_count
+
+            let activeWorkloads = 0;
             for (
               let j = 0;
-              j < this.deployedSolutions[i].workloads.length;
+              j < this.deployedSolutions[i].nodes.length;
               j++
             ) {
-              let workload = this.deployedSolutions[i].workloads[j];
-              // this.deployedSolutions[i]["id"] = workload.id
-              this.deployedSolutions[i]["active_workloads"] =
-                this.deployedSolutions[i].workloads.length;
-              workload["cpu"] = workload.capacity.cpu;
-              workload["memory"] = workload.capacity.memory;
-              workload["disk"] = workload.capacity.disk_size;
-              workload["ip"] = workload.network_connection[0].ipaddress;
+              let workload = this.deployedSolutions[i].nodes[j];
+              workload["cpu"] = this.deployedSolutions[i].cpu;
+              workload["memory"] = this.deployedSolutions[i].memory;
+              workload["disk"] = this.deployedSolutions[i].disk_size;
+              workload["disk"] = this.deployedSolutions[i].disk_size;
+
+              workload["ipv4"] = workload.ipv4_address;
+              workload["ipv6"] = workload.ipv6_address;
               workload["creation"] = new Date(
-                workload.info.epoch * 1000
+                workload.creation_time * 1000
               ).toLocaleString("en-GB");
+              // count number of workloads that are active and deployed
+              if(workload.state == "deployed"){
+                activeWorkloads += 1;
+              }
             }
+            this.deployedSolutions[i]["activeworkloads"] = activeWorkloads;
+
           }
         })
         .finally(() => {

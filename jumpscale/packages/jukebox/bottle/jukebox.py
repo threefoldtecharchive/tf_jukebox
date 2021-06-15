@@ -148,7 +148,8 @@ def list_deployments(solution_type: str) -> str:
     user_info = j.data.serializers.json.loads(get_user_info())
     tname = user_info["username"]
     prefixed_tname = f"{IDENTITY_PREFIX}_{tname.replace('.3bot', '')}"
-    deployments = jukebox.list_deployments(prefixed_tname, solution_type.lower())[solution_type.lower()]
+    deployments = j.sals.jukebox.list_deployments(prefixed_tname, solution_type.lower())
+    deployments = [deployment.to_dict() for deployment in deployments]
 
     return j.data.serializers.json.dumps({"data": deployments})
 
@@ -164,7 +165,10 @@ def cancel_deployment() -> str:
     deployment_name = data.get("name")
     solution_type = data.get("solution_type", "").lower()
 
-    jukebox.delete_deployment(prefixed_tname, solution_type, deployment_name)
+    deployment = j.sals.jukebox.find(
+        identity_name=prefixed_tname, deployment_name=deployment_name, solution_type=solution_type
+    )
+    j.sals.jukebox.delete(deployment.instance_name)
     return j.data.serializers.json.dumps({"data": {}})
 
 
@@ -179,7 +183,12 @@ def switch_auto_extend() -> str:
     deployment_name = data.get("name")
     new_state = data.get("new_state", False)
     solution_type = data.get("solution_type", "").lower()
-    j.core.db.hset(JUKEBOX_AUTO_EXTEND_KEY, f"{prefixed_tname}:{solution_type}:{deployment_name}", str(new_state))
+
+    deployment = j.sals.jukebox.find(
+        identity_name=prefixed_tname, deployment_name=deployment_name, solution_type=solution_type
+    )
+    deployment.auto_extend = new_state
+    deployment.save()
 
 
 @app.route("/api/wallet", method="GET")

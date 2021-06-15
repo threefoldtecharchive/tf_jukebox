@@ -27,7 +27,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         "success",
     ]
     # FLIST = "<flist_url>"
-    # QUERY = {"cru": 1, "sru": 1, "mru": 1}
+    QUERY = {"cru": 1, "sru": 1, "mru": 1}
 
     def _init(self):
         self.user_info_data = self.user_info()
@@ -147,6 +147,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         deployment.disk_size = self.QUERY["sru"] * 1024
         deployment.disk_type = self.DISK_TYPE
         deployment.expiration_date = self.expiration + j.data.time.utcnow().timestamp
+        deployment.farm_name = self.farm
         deployment.save()
         # create pool
         self.md_show_update("Creating pool...")
@@ -162,7 +163,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         # TODO to be done for all farms to have a list of pool_ids, the following is per one farm
         try:
             pool_rev_id = deployment.create_capacity_pool(
-                self.wallet, cu=cloud_units["cu"], su=cloud_units["su"], ipv4us=0, farm=self.farm,
+                self.wallet, cu=cloud_units["cu"], su=cloud_units["su"], ipv4us=0, farm=self.farm
             )
 
             pool_ids = [pool_rev_id]
