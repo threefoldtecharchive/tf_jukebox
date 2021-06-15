@@ -1,7 +1,7 @@
 from jumpscale.loader import j
 from textwrap import dedent
 from jumpscale.sals.chatflows.chatflows import chatflow_step
-from jumpscale.packages.jukebox.sals.jukebox_deploy_chatflow import JukeboxDeployChatflow
+from jumpscale.sals.jukebox.jukebox_deploy_chatflow import JukeboxDeployChatflow
 
 
 class DigibyteDeploy(JukeboxDeployChatflow):
@@ -26,12 +26,9 @@ class DigibyteDeploy(JukeboxDeployChatflow):
     def environment(self):
         self.env = {
             "pub_key": self.public_key,
-            }
-        self.rpc_password = j.data.idgenerator.idgenerator.chars(8)
-        self.secret_env = {
-            "rpcuser": self.owner_tname,
-            "rpcpasswd": self.rpc_password
         }
+        self.rpc_password = j.data.idgenerator.idgenerator.chars(8)
+        self.secret_env = {"rpcuser": self.owner_tname, "rpcpasswd": self.rpc_password}
         self.metadata = {
             "form_info": {
                 "chatflow": self.SOLUTION_TYPE,
@@ -50,5 +47,6 @@ class DigibyteDeploy(JukeboxDeployChatflow):
         password: {self.rpc_password}<br />
         """
         self.md_show(dedent(message), md=True)
+
 
 chat = DigibyteDeploy

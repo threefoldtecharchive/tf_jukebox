@@ -5,14 +5,16 @@ from jumpscale.clients.stellar import TRANSACTION_FEES
 from jumpscale.loader import j
 from jumpscale.sals.chatflows.chatflows import GedisChatBot, StopChatFlow, chatflow_step
 from jumpscale.sals.marketplace.apps_chatflow import MarketPlaceAppsChatflow
+from jumpscale.clients.explorer.models import DiskType
 
-from jumpscale.packages.jukebox.sals import jukebox
+from jumpscale.sals.jukebox import jukebox
 
 IDENTITY_PREFIX = "jukebox"
 
 
 class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
     ENTRY_POINT = ""
+    DISK_TYPE = DiskType.SSD
     title = "Blockchain"
     steps = [
         "get_deployment_name",
@@ -62,9 +64,11 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
     def get_deployment_name(self):
         self._init()
         deployment_names = []
-        all_deployments = jukebox.list_deployments(identity_name=self.identity_name, solution_type=self.SOLUTION_TYPE)
+        all_deployments = j.sals.jukebox.list_deployments(
+            identity_name=self.identity_name, solution_type=self.SOLUTION_TYPE
+        )
         if all_deployments:
-            deployment_names = [deployment["name"] for deployment in all_deployments[self.SOLUTION_TYPE]]
+            deployment_names = [deployment.deployment_name for deployment in all_deployments]
         self.deployment_name = self.string_ask(
             "Please enter a name for your Deployment (will be used in listing and deletions in the future)",
             required=True,
@@ -132,11 +136,23 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
 
     @chatflow_step(title="Deployment")
     def deploy(self):
-        # extend_pool
+        deployment = j.sals.jukebox.new(
+            solution_type=self.SOLUTION_TYPE,
+            deployment_name=self.deployment_name,
+            identity_name=self.identity_name,
+            nodes_count=self.nodes_count,
+        )
+        deployment.cpu = self.QUERY["cru"]
+        deployment.memory = self.QUERY["mru"] * 1024
+        deployment.disk_size = self.QUERY["sru"] * 1024
+        deployment.disk_type = self.DISK_TYPE
+        deployment.expiration_date = self.expiration + j.data.time.utcnow().timestamp
+        deployment.save()
+        # create pool
         self.md_show_update("Creating pool...")
         # Calculate required units from query
         cloud_units = jukebox.calculate_required_units(
-            cpu=self.QUERY["cru"] * 1,
+            cpu=self.QUERY["cru"],
             memory=self.QUERY["mru"] * 1024,
             disk_size=self.QUERY["sru"] * 1024,
             duration_seconds=self.expiration,
@@ -145,13 +161,8 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
 
         # TODO to be done for all farms to have a list of pool_ids, the following is per one farm
         try:
-            pool_rev_id = jukebox.create_capacity_pool(
-                self.wallet,
-                cu=cloud_units["cu"],
-                su=cloud_units["su"],
-                ipv4us=0,
-                farm=self.farm,
-                identity_name=self.identity_name,
+            pool_rev_id = deployment.create_capacity_pool(
+                self.wallet, cu=cloud_units["cu"], su=cloud_units["su"], ipv4us=0, farm=self.farm,
             )
 
             pool_ids = [pool_rev_id]
@@ -164,13 +175,13 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
 
         self.md_show_update("Deploying network...")
         # Create network
-        _, self.wg_quick = jukebox.deploy_network(
-            self.identity_name, pool_rev_id, network_name=self.network_name, owner_tname=self.identity_name
+        _, self.wg_quick = deployment.deploy_network(
+            pool_rev_id, network_name=self.network_name, owner_tname=self.identity_name
         )
 
         # Get possible nodes,ip_addresses then spawn deployment of container in gevent
         self.md_show_update("Deploying containers...")
-        jukebox.deploy_all_containers(
+        deployment.deploy_all_containers(
             farm_name=self.farm,
             number_of_deployments=self.nodes_count,
             network_name=self.network_name,
@@ -178,7 +189,6 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
             sru=self.QUERY["sru"],
             mru=self.QUERY["mru"],
             pool_ids=pool_ids,
-            identity_name=self.identity_name,
             owner_tname=self.identity_name,
             blockchain_type=self.SOLUTION_TYPE,
             env=self.env,

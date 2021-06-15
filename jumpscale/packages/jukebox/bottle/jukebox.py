@@ -11,7 +11,7 @@ from jumpscale.core.base import StoredFactory
 from jumpscale.packages.auth.bottle.auth import authenticated, get_user_info, login_required, package_authorized
 
 from jumpscale.packages.jukebox.bottle.models import UserEntry
-from jumpscale.packages.jukebox.sals import jukebox
+from jumpscale.sals.jukebox import jukebox
 
 app = Bottle()
 

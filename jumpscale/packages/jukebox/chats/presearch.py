@@ -1,6 +1,6 @@
 from jumpscale.loader import j
 from jumpscale.sals.chatflows.chatflows import chatflow_step
-from jumpscale.packages.jukebox.sals.jukebox_deploy_chatflow import JukeboxDeployChatflow
+from jumpscale.sals.jukebox.jukebox_deploy_chatflow import JukeboxDeployChatflow
 
 
 class PresearchDeploy(JukeboxDeployChatflow):
