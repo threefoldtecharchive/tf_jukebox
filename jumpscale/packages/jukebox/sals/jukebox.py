@@ -204,7 +204,7 @@ def get_container_ip(network_name, identity_name, node, pool_id, tname, excluded
             excluded_nodes = set(excluded_nodes)
             excluded_nodes.add(node.node_id)
             j.core.db.set("excluded_nodes", j.data.serializers.json.dumps(list(excluded_nodes)), ex=3 * 60 * 60)
-            raise DeploymentFailed(f"Failed to add node {node.node_id} to network")
+            return
 
     network_view_copy = network_view_copy.copy()
     free_ips = network_view_copy.get_node_free_ips(node)
@@ -285,6 +285,10 @@ def deploy_all_containers(
 
         excluded_ips = used_ip_addresses.get(node.node_id, [])
         ip_address = get_container_ip(network_name, identity_name, node, pool_id, owner_tname, excluded_ips)
+        if not ip_address:
+            i -= 1
+            continue
+
         used_ip_addresses[node.node_id].append(ip_address)
 
         # START SPAWN
