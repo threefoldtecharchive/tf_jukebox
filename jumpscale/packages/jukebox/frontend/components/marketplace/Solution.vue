@@ -244,12 +244,11 @@ module.exports = {
                 workload.creation_time * 1000
               ).toLocaleString("en-GB");
               // count number of workloads that are active and deployed
-              if(workload.state == "deployed"){
+              if(workload.state == "DEPLOYED"){
                 activeWorkloads += 1;
               }
             }
             this.deployedSolutions[i]["activeworkloads"] = activeWorkloads;
-
           }
         })
         .finally(() => {
