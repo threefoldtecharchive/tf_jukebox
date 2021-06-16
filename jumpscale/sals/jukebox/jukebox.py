@@ -138,14 +138,14 @@ def calculate_funding_amount(identity_name):
         price = 0
         if not deployment.auto_extend:
             continue
-        if deployment.expiration_date > j.data.time.utcnow().timestamp + 60 * 60 * 24 * 2:
+        if deployment.expiration_date.timestamp() > j.data.time.utcnow().timestamp + 60 * 60 * 24 * 2:
             continue
         pool_id = deployment.pool_ids[0]  # TODO change when having multiple pools
         pool = zos.pools.get(pool_id)  # TODO: set active unit while listing
         cus = pool.active_cu
         sus = pool.active_su
         ipv4us = pool.active_ipv4
-        farm_id = zos._explorer.farms.get(farm_name=deployment.farm).id
+        farm_id = zos._explorer.farms.get(farm_name=deployment.farm_name).id
         farm_prices = zos._explorer.farms.get_deal_for_threebot(farm_id, j.core.identity.me.tid)[
             "custom_cloudunits_price"
         ]
@@ -416,4 +416,10 @@ class JukeboxDeployment(Base):
         self.save()
         return resv_id
 
-    # TODO: add method to delete workload
+    def delete_node(self, wid):
+        for node in self.nodes:
+            if node.wid == wid:
+                node.state = State.DELETED
+                self.nodes_count -= 1
+                self.save()
+                self.zos.workloads.decomission(node.wid)

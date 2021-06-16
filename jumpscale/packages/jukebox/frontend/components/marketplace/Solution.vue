@@ -55,17 +55,33 @@
               <template slot="no-data">No {{solution.name.toLowerCase()}} instances available</p></template>
 
               <template v-slot:expanded-item="{ headers, item }">
+
                 <td :colspan="headers.length" class="py-6 font-weight-black">
-                    <p class="mb-4">Active Workloads</p>
+                    <p class="mb-4">Workloads</p>
                     <v-data-table
                       :loading="loading"
                       :headers="workloadHeaders"
                       :items="item.nodes"
                       class="elevation-1"
                       hide-default-footer
+                      sort-by="state"
+                      sort-desc=true
 
                     >
                       <template slot="no-data">No workloads available</p></template>
+
+                      <template v-slot:item.actions="{ item }">
+                        <v-tooltip top v-if="item.state != 'DELETED'">
+                          <template v-slot:activator="{ on, attrs }">
+                            <v-btn icon @click.stop="cancelNode(item.deploymentName,item.wid)">
+                              <v-icon v-bind="attrs" v-on="on" color="#810000"
+                                >mdi-delete</v-icon
+                              >
+                            </v-btn>
+                          </template>
+                          <span>Delete</span>
+                        </v-tooltip>
+                      </template>
                     </v-data-table>
                 </td>
               </template>
@@ -73,7 +89,7 @@
               <template v-slot:item.actions="{ item }">
                 <v-tooltip top>
                   <template v-slot:activator="{ on, attrs }">
-                    <v-btn icon @click.stop="cancelDeployment(item)">
+                    <v-btn icon @click.stop="cancelDeployment(item.name)">
                       <v-icon v-bind="attrs" v-on="on" color="#810000"
                         >mdi-delete</v-icon
                       >
@@ -109,7 +125,7 @@
         </v-card>
       </template>
     </base-component>
-    <cancel-deployment v-if="selected" v-model="dialogs.cancelDeployment" @done="getDeployedSolutions(type)" :deploymentname="selected.name" :solutiontype="type" ></cancel-deployment>
+    <cancel-deployment v-if="selected" v-model="dialogs.cancelDeployment" @done="getDeployedSolutions(type)" :deploymentname="selected" :wid="selectedWid" :solutiontype="type" ></cancel-deployment>
   </div>
 </template>
 
@@ -126,6 +142,7 @@ module.exports = {
     return {
       loading: true,
       selected: null,
+      selectedWid:null,
       dialogs: {
         info: false,
         cancelDeployment: false,
@@ -134,7 +151,7 @@ module.exports = {
         { text: "Deployment Name", value: "name" },
         { text: "Farm Name", value: "farm" },
         { text: "Pool ID", value: "pool" },
-        { text: "Total Nodes", value: "total" },
+        { text: "Total Active Nodes", value: "total" },
         { text: "Expiration Date", value: "expiration" },
         { text: "Actions", value: "actions", sortable: false },
         { text: "", value: "data-table-expand" },
@@ -146,7 +163,9 @@ module.exports = {
         { text: "Cpu", value: "cpu" },
         { text: "Memory /MB", value: "memory" },
         { text: "Disk Size /MB", value: "disk" },
+        { text: "State", value: "state" },
         { text: "Creation Time", value: "creation" },
+        { text: "Actions", value: "actions", sortable: false },
       ],
 
       deployedSolutions: [],
@@ -180,8 +199,13 @@ module.exports = {
       return localStorage.hasOwnProperty(solution_type);
     },
 
-    cancelDeployment(data) {
-      this.selected = data;
+    cancelDeployment(deploymentName) {
+      this.selected = deploymentName;
+      this.dialogs.cancelDeployment = true;
+    },
+    cancelNode(deploymentName,wid) {
+      this.selected = deploymentName;
+      this.selectedWid = wid;
       this.dialogs.cancelDeployment = true;
     },
     getDeployedSolutions(solution_type) {
@@ -215,6 +239,7 @@ module.exports = {
 
               workload["ipv4"] = workload.ipv4_address;
               workload["ipv6"] = workload.ipv6_address;
+              workload["deploymentName"] = this.deployedSolutions[i].deployment_name
               workload["creation"] = new Date(
                 workload.creation_time * 1000
               ).toLocaleString("en-GB");

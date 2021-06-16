@@ -172,6 +172,25 @@ def cancel_deployment() -> str:
     return j.data.serializers.json.dumps({"data": {}})
 
 
+@app.route("/api/node/cancel", method="POST")
+@package_authorized("jukebox")
+def cancel_node() -> str:
+    user_info = j.data.serializers.json.loads(get_user_info())
+    tname = user_info["username"]
+    prefixed_tname = f"{IDENTITY_PREFIX}_{tname.replace('.3bot', '')}"
+
+    data = j.data.serializers.json.loads(request.body.read())
+    deployment_name = data.get("name")
+    wid = data.get("wid")
+    solution_type = data.get("solution_type", "").lower()
+
+    deployment = j.sals.jukebox.find(
+        identity_name=prefixed_tname, deployment_name=deployment_name, solution_type=solution_type
+    )
+    deployment.delete_node(wid)
+    return j.data.serializers.json.dumps({"data": {}})
+
+
 @app.route("/api/deployments/switch_auto_extend", method="POST")
 @package_authorized("jukebox")
 def switch_auto_extend() -> str:

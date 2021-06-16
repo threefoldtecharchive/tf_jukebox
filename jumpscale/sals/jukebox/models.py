@@ -5,10 +5,10 @@ from jumpscale.core.base import Base, fields
 
 
 class State(Enum):
-    DEPLOYED = "deployed"
-    DELETED = "deleted"
-    ERROR = "error"
-    EXPIRED = "expired"
+    DEPLOYED = "DEPLOYED"
+    DELETED = "DELETED"
+    ERROR = "ERROR"
+    EXPIRED = "EXPIRED"
 
 
 class BlockchainNode(Base):
