@@ -112,7 +112,7 @@ class MonitorDeployments(BackgroundService):
         identity = j.core.identity.find(identity_name)
         recipient_email = identity.email.replace("_jukebox@", "@")
         mail_config = j.core.config.get("EMAIL_SERVER_CONFIG")
-        sender = mail_config.get("username")
+        sender = mail_config.get("sender", "support@jukebox.grid.tf")
         mail_info = {"recipients_emails": [recipient_email], "sender": sender, "subject": subject, "message": message}
         j.core.db.rpush(MAIL_QUEUE, j.data.serializers.json.dumps(mail_info))
 

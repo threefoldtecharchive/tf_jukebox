@@ -9,7 +9,7 @@ class DigibyteDeploy(JukeboxDeployChatflow):
     SOLUTION_TYPE = "digibyte"
     QUERY = {"cru": 1, "sru": 1, "mru": 1}
     ENTERY_POINT = "/start_dgb.sh"
-    FLIST = "https://hub.grid.tf/ashraf.3bot/arrajput-digibyte-2.7.flist"
+    FLIST = "https://hub.grid.tf/ashraf.3bot/arrajput-digibyte-flist-1.0.flist"
     steps = [
         "get_deployment_name",
         "block_chain_info",
