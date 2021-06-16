@@ -1,10 +1,10 @@
+from jumpscale.sals.jukebox.models import State
 import gevent
 from jumpscale.loader import j
 from jumpscale.sals.zos.billing import InsufficientFunds
 from jumpscale.tools.servicemanager.servicemanager import BackgroundService
 
 from jumpscale.packages.admin.services.notifier import MAIL_QUEUE
-from jumpscale.packages.jukebox.sals.jukebox import list_deployments
 
 
 class MonitorDeployments(BackgroundService):
@@ -16,42 +16,46 @@ class MonitorDeployments(BackgroundService):
 
     def job(self):
         j.logger.info("Starting monitoring deployments...")
-        for identity_name in j.core.identity.list_all():
-            if not identity_name.startswith("jukebox"):
-                continue
-            all_deployments = list_deployments(identity_name)
-            self._check_down_containers_and_auto_extend_pools(all_deployments, identity_name)
+        for deployment_instance_name in j.sals.jukebox.list_all():
+            deployment = j.sals.jukebox.find(deployment_instance_name)
+            self._check_down_containers(deployment)
+            self._auto_extend_pool(deployment)
+
+            gevent.sleep(1)
 
         j.logger.info("All deployments are monitored")
 
-    def _check_down_containers_and_auto_extend_pools(self, all_deployments, identity_name):
-        user = j.data.text.removeprefix(identity_name, "jukebox_")
-        for deployment_type, deployments in all_deployments.items():
-            for deployment in deployments:
-                number_of_down_deployment = deployment["metadata"]["number_of_nodes"] - len(deployment["workloads"])
-                if number_of_down_deployment > 0:
-                    j.logger.warning(
-                        f"Deployment: {deployment['name']}, Deployment type: {deployment_type}, owner: {user} has 1 node(s) went down"
-                    )
-                    message = (
-                        f"Dear {user},\n\n"
-                        f"{number_of_down_deployment} node(s) of {deployment_type} went down for your deployment {deployment['name']}."
-                    )
-                    subject = "Jukebox Nodes Down"
-                    self._send_email(identity_name, subject, message)
-                self._auto_extend_pool(
-                    pool_id=deployment["workloads"][0]["info"]["pool_id"],
-                    identity_name=identity_name,
-                    deployment_name=deployment["name"],
-                    deployment_type=deployment_type,
-                    user=user,
-                    auto_extend=deployment["autoextend"],
-                )
-                gevent.sleep(1)
+    def _check_down_containers(self, deployment):
+        user = j.data.text.removeprefix(deployment.identity_name, "jukebox_")
 
-    def _auto_extend_pool(self, pool_id, identity_name, deployment_name, deployment_type, user, auto_extend=False):
-        j.logger.info(f"Auto extend pool {pool_id}")
+        # for deployment_type, deployments in all_deployments.items():
+        #     for deployment in deployments:
+
+        number_of_deployed = len([node for node in deployment.nodes if node.state == State.DEPLOYED])
+        number_of_down_deployment = deployment.nodes_count - number_of_deployed
+        if number_of_down_deployment > 0:
+            j.logger.warning(
+                f"Deployment: {deployment.deployment_name}, Deployment type: {deployment.solution_type}, owner: {user} has {number_of_down_deployment} node(s) went down"
+            )
+            message = (
+                f"Dear {user},\n\n"
+                f"{number_of_down_deployment} node(s) of {deployment.solution_type} went down for your deployment {deployment.deployment_name}."
+            )
+            subject = "Jukebox Nodes Down"
+            self._send_email(deployment.identity_name, subject, message)
+
+    def _auto_extend_pool(self, deployment):
+        identity_name = deployment.identity_name
+        user = j.data.text.removeprefix(identity_name, "jukebox_")
+        pool_id = deployment.pool_ids[0]
         zos = j.sals.zos.get(identity_name)
+
+        j.logger.info(f"Auto extend pool {pool_id}")
+
+        deployment_name = deployment.deployment_name
+        deployment_type = deployment.solution_type
+        auto_extend = deployment.auto_extend
+
         pool = zos.pools.get(pool_id)
         expiration = pool.empty_at
         if expiration > j.data.time.utcnow().timestamp + 60 * 60 * 24 * 2:
