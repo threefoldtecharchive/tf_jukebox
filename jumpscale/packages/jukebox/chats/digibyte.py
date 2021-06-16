@@ -15,7 +15,6 @@ class DigibyteDeploy(JukeboxDeployChatflow):
         "block_chain_info",
         "choose_farm",
         "set_expiration",
-        "upload_public_key",
         "environment",
         "payment",
         "deploy",
@@ -24,9 +23,9 @@ class DigibyteDeploy(JukeboxDeployChatflow):
 
     @chatflow_step(title="User configurations")
     def environment(self):
-        self.env = {
-            "pub_key": self.public_key,
-        }
+        # self.env = {
+        #     "pub_key": self.public_key,
+        # }
         self.rpc_password = j.data.idgenerator.idgenerator.chars(8)
         self.secret_env = {"rpcuser": self.owner_tname, "rpcpasswd": self.rpc_password}
         self.metadata = {

@@ -65,7 +65,7 @@
                       class="elevation-1"
                       hide-default-footer
                       sort-by="state"
-                      sort-desc=true
+                      sort-desc
 
                     >
                       <template slot="no-data">No workloads available</p></template>
@@ -142,7 +142,7 @@ module.exports = {
     return {
       loading: true,
       selected: null,
-      selectedWid:null,
+      selectedWid: null,
       dialogs: {
         info: false,
         cancelDeployment: false,
@@ -203,7 +203,7 @@ module.exports = {
       this.selected = deploymentName;
       this.dialogs.cancelDeployment = true;
     },
-    cancelNode(deploymentName,wid) {
+    cancelNode(deploymentName, wid) {
       this.selected = deploymentName;
       this.selectedWid = wid;
       this.dialogs.cancelDeployment = true;
@@ -215,22 +215,23 @@ module.exports = {
           this.deployedSolutions = response.data.data;
 
           for (let i = 0; i < this.deployedSolutions.length; i++) {
-            this.deployedSolutions[i].pool = this.deployedSolutions[i].pool_ids[0]
+            this.deployedSolutions[i].pool =
+              this.deployedSolutions[i].pool_ids[0];
             this.deployedSolutions[i].expiration = new Date(
               this.deployedSolutions[i].expiration_date * 1000
             ).toLocaleString("en-GB");
-            this.deployedSolutions[i].autoextend = this.deployedSolutions[i].auto_extend
-            this.deployedSolutions[i].name = this.deployedSolutions[i].deployment_name
-            this.deployedSolutions[i].farm = this.deployedSolutions[i].farm_name
+            this.deployedSolutions[i].autoextend =
+              this.deployedSolutions[i].auto_extend;
+            this.deployedSolutions[i].name =
+              this.deployedSolutions[i].deployment_name;
+            this.deployedSolutions[i].farm =
+              this.deployedSolutions[i].farm_name;
 
-            this.deployedSolutions[i]["total"] = this.deployedSolutions[i].nodes_count
+            this.deployedSolutions[i]["total"] =
+              this.deployedSolutions[i].nodes_count;
 
             let activeWorkloads = 0;
-            for (
-              let j = 0;
-              j < this.deployedSolutions[i].nodes.length;
-              j++
-            ) {
+            for (let j = 0; j < this.deployedSolutions[i].nodes.length; j++) {
               let workload = this.deployedSolutions[i].nodes[j];
               workload["cpu"] = this.deployedSolutions[i].cpu;
               workload["memory"] = this.deployedSolutions[i].memory;
@@ -239,12 +240,13 @@ module.exports = {
 
               workload["ipv4"] = workload.ipv4_address;
               workload["ipv6"] = workload.ipv6_address;
-              workload["deploymentName"] = this.deployedSolutions[i].deployment_name
+              workload["deploymentName"] =
+                this.deployedSolutions[i].deployment_name;
               workload["creation"] = new Date(
                 workload.creation_time * 1000
               ).toLocaleString("en-GB");
               // count number of workloads that are active and deployed
-              if(workload.state == "DEPLOYED"){
+              if (workload.state == "DEPLOYED") {
                 activeWorkloads += 1;
               }
             }
@@ -285,6 +287,6 @@ a.chatflowInfo {
   box-shadow: none !important;
 }
 .switch-div {
-display: inline-block;
+  display: inline-block;
 }
 </style>

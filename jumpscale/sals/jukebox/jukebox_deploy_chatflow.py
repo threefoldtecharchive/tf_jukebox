@@ -21,7 +21,6 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         "block_chain_info",
         "choose_farm",
         "set_expiration",
-        "upload_public_key",
         "payment",
         "deploy",
         "success",
@@ -83,10 +82,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         form = self.new_form()
         self.nodes_count = form.int_ask("Please enter the number of nodes you want to deploy", required=True)
         self.farm_selection = form.single_choice(
-            "Do you wish to select the farm automatically?",
-            ["Yes", "No"],
-            required=True,
-            default="Automatically Select Farm",
+            "Do you wish to select the farm automatically?", ["Yes", "No"], required=True, default="Yes",
         )
         form.ask()
         self.nodes_count = self.nodes_count.value
