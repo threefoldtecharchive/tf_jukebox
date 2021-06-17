@@ -45,8 +45,9 @@ class JukeboxDeployment(Base):
     memory = fields.Integer()  # per node
     disk_size = fields.Integer()  # per node
     disk_type = fields.Enum(DiskType)  # per node
-    _zos = None
+    secret_env = fields.String()
     __lock = BoundedSemaphore(1)
+    _zos = None
 
     @property
     def zos(self):
@@ -255,26 +256,52 @@ class JukeboxDeployment(Base):
                 self.save()
                 self.zos.workloads.decomission(node.wid)
 
-    # def redeploy_containers(self, number_of_containers):
-    #     wid = self.nodes[0].wid
-    #     workload = self.zos.workloads.get(wid)
-    #     network_name = f"{self.identity_name}_{self.pool_id}"
-    #     cru = self.cpu
-    #     mru = self.memory * 1024
-    #     sru = self.disk_size * 1024
-    #     env = workload.environment
+    def redeploy_containers(self, number_of_containers):
+        self._update_state(State.DEPLOYING)
+        wid = self.nodes[0].wid
+        workload = self.zos.workloads.get(wid)
+        network_name = f"{self.identity_name}_{self.pool_ids[0]}"
+        secret_env = j.sals.reservation_chatflow.deployer.decrypt_metadata(self.secret_env, self.identity_name)
+        secret_env_dict = j.data.serializers.json.loads(secret_env)
+        metadata = j.sals.reservation_chatflow.deployer.decrypt_metadata(workload.info.metadata, self.identity_name)
+        metadata_dict = j.data.serializers.json.loads(metadata)
+        metadata_dict.pop("solution_uuid")
 
-    #     self.deploy_all_containers(
-    #         network_name=network_name,
-    #         cru=cru,
-    #         mru=mru,
-    #         sru=sru,
-    #         pool_ids=self.pool_ids,
-    #         owner_tname=self.identity_name,
-    #         blockchain_type=self.deployment_name
-    #         env=workload.environment,
-    #         secret_env=
-    #         )
+        self.deploy_all_containers(
+            number_of_containers,
+            network_name=network_name,
+            env=workload.environment,
+            secret_env=secret_env_dict,
+            metadata=metadata_dict,
+            flist=workload.flist,
+            entry_point=workload.entrypoint,
+        )
+
+        number_deployed_containers = len(self.nodes) - self.nodes_count
+        number_failed_containers = number_of_containers - number_deployed_containers
+        nodes = self.nodes.copy()
+        for node in self.nodes:
+            if not number_deployed_containers:
+                break
+            if node.state == State.ERROR:
+                nodes.pop(node)
+                number_deployed_containers -= 1
+
+        self._update_nodes(nodes)
+        if number_failed_containers:
+            self._update_state(State.ERROR)  # not all container will be redeployed successfully
+        else:
+            self._update_state(State.DEPLOYED)
+
+    @lock_deployment
+    def _update_state(self, new_state):
+        self.state = new_state
+        self.save()
+
+    @lock_deployment
+    def _update_nodes(self, new_nodes):
+        self.nodes = new_nodes
+        self.save()
 
     @lock_deployment
     def _update_deployment(self):

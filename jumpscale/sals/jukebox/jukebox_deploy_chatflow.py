@@ -160,6 +160,9 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         deployment.disk_type = self.DISK_TYPE
         deployment.expiration_date = self.expiration + j.data.time.utcnow().timestamp
         deployment.farm_name = self.farm
+        deployment.secret_env = j.sals.reservation_chatflow.deployer.encrypt_metadata(
+            self.secret_env, self.identity_name
+        )
         deployment.save()
 
         with new_jukebox_context(deployment.instance_name):

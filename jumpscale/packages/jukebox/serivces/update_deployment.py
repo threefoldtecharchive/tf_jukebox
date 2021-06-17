@@ -1,15 +1,12 @@
 import gevent
-from jumpscale.clients.explorer.models import NextAction
 from jumpscale.loader import j
 from jumpscale.tools.servicemanager.servicemanager import BackgroundService
 
 from jumpscale.sals.jukebox.models import State
 
-POOL_EXPIRATION_VALUE = 9223372036854775807
-
 
 class UpdateDeployment(BackgroundService):
-    def __init__(self, interval=60 * 60 * 12, *args, **kwargs):
+    def __init__(self, interval=60 * 5, *args, **kwargs):
         """
         Update deployments' objects.
         """
