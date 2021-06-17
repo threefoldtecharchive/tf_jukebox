@@ -1,3 +1,4 @@
+from contextlib import ContextDecorator
 import random
 from textwrap import dedent
 
@@ -11,6 +12,20 @@ from jumpscale.sals.jukebox import utils
 from jumpscale.sals.jukebox.models import State
 
 IDENTITY_PREFIX = "jukebox"
+
+
+class new_jukebox_context(ContextDecorator):
+    def __init__(self, instance_name, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.instance_name = instance_name
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if exc_type:
+            j.logger.error(f"new_jukebox_context: deployment failed due to exception: {exc_value}")
+            j.sals.jukebox.delete(self.instance_name)
 
 
 class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
@@ -146,47 +161,49 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         deployment.expiration_date = self.expiration + j.data.time.utcnow().timestamp
         deployment.farm_name = self.farm
         deployment.save()
-        # create pool
-        self.md_show_update("Creating pool...")
-        # Calculate required units from query
-        cloud_units = utils.calculate_required_units(
-            cpu=self.QUERY["cru"],
-            memory=self.QUERY["mru"] * 1024,
-            disk_size=self.QUERY["sru"] * 1024,
-            duration_seconds=self.expiration,
-            number_of_containers=self.nodes_count,
-        )
 
-        # TODO to be done for all farms to have a list of pool_ids, the following is per one farm
-        try:
-            pool_rev_id = deployment.create_capacity_pool(
-                self.wallet, cu=cloud_units["cu"], su=cloud_units["su"], ipv4us=0, farm=self.farm
+        with new_jukebox_context(deployment.instance_name):
+            # create pool
+            self.md_show_update("Creating pool...")
+            # Calculate required units from query
+            cloud_units = utils.calculate_required_units(
+                cpu=self.QUERY["cru"],
+                memory=self.QUERY["mru"] * 1024,
+                disk_size=self.QUERY["sru"] * 1024,
+                duration_seconds=self.expiration,
+                number_of_containers=self.nodes_count,
             )
 
-            pool_ids = [pool_rev_id]
-        except Exception as e:
-            j.logger.exception(f"Failed to deploy", exception=e)
-            j.sals.billing.issue_refund(self.payment_id)
-            self.stop("Failed to deploy")
+            # TODO to be done for all farms to have a list of pool_ids, the following is per one farm
+            try:
+                pool_rev_id = deployment.create_capacity_pool(
+                    self.wallet, cu=cloud_units["cu"], su=cloud_units["su"], ipv4us=0, farm=self.farm
+                )
 
-        self.network_name = f"jukebox_{self.owner_tname}_{pool_rev_id}"
+                pool_ids = [pool_rev_id]
+            except Exception as e:
+                j.logger.exception(f"Failed to deploy", exception=e)
+                j.sals.billing.issue_refund(self.payment_id)
+                self.stop("Failed to deploy")
 
-        self.md_show_update("Deploying network...")
-        # Create network
-        _, self.wg_quick = deployment.deploy_network(network_name=self.network_name)
+            self.network_name = f"jukebox_{self.owner_tname}_{pool_rev_id}"
 
-        # Get possible nodes,ip_addresses then spawn deployment of container in gevent
-        self.md_show_update("Deploying containers...")
-        deployment.deploy_all_containers(
-            number_of_deployments=self.nodes_count,
-            network_name=self.network_name,
-            env=self.env,
-            metadata=self.metadata,
-            flist=self.FLIST,
-            entry_point=self.ENTRY_POINT,
-            secret_env=self.secret_env,
-        )
-        deployment.state = State.DEPLOYED
+            self.md_show_update("Deploying network...")
+            # Create network
+            _, self.wg_quick = deployment.deploy_network(network_name=self.network_name)
+
+            # Get possible nodes,ip_addresses then spawn deployment of container in gevent
+            self.md_show_update("Deploying containers...")
+            deployment.deploy_all_containers(
+                number_of_deployments=self.nodes_count,
+                network_name=self.network_name,
+                env=self.env,
+                metadata=self.metadata,
+                flist=self.FLIST,
+                entry_point=self.ENTRY_POINT,
+                secret_env=self.secret_env,
+            )
+            deployment.state = State.DEPLOYED
 
     @chatflow_step(title="Success", disable_previous=True, final_step=True)
     def success(self):
