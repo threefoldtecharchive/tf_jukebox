@@ -5,6 +5,7 @@ from jumpscale.core.base import Base, fields
 
 
 class State(Enum):
+    DEPLOYING = "DEPLOYING"
     DEPLOYED = "DEPLOYED"
     DELETED = "DELETED"
     ERROR = "ERROR"

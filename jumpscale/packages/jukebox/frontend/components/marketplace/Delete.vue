@@ -28,7 +28,6 @@ module.exports = {
   },
   methods: {
     submit() {
-      debugger;
       this.loading = true;
       this.error = null;
       if(this.wid == null){

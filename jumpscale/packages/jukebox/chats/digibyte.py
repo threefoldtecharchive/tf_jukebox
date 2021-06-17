@@ -23,6 +23,7 @@ class DigibyteDeploy(JukeboxDeployChatflow):
 
     @chatflow_step(title="User configurations")
     def environment(self):
+        self.env = {}
         # self.env = {
         #     "pub_key": self.public_key,
         # }

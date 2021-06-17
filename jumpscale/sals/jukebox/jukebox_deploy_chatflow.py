@@ -1,13 +1,14 @@
 import random
 from textwrap import dedent
 
+from jumpscale.clients.explorer.models import DiskType
 from jumpscale.clients.stellar import TRANSACTION_FEES
 from jumpscale.loader import j
 from jumpscale.sals.chatflows.chatflows import GedisChatBot, StopChatFlow, chatflow_step
 from jumpscale.sals.marketplace.apps_chatflow import MarketPlaceAppsChatflow
-from jumpscale.clients.explorer.models import DiskType
 
-from jumpscale.sals.jukebox import jukebox
+from jumpscale.sals.jukebox import utils
+from jumpscale.sals.jukebox.models import State
 
 IDENTITY_PREFIX = "jukebox"
 
@@ -57,7 +58,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
                 j.logger.info(f"This system doesn't have {wname} configured")
                 raise StopChatFlow(f"{wname} doesn't exist, please contact support.")
 
-        self.wallet = jukebox.get_or_create_user_wallet(wallet_name)
+        self.wallet = utils.get_or_create_user_wallet(wallet_name)
 
     @chatflow_step(title="Deployment Name")
     def get_deployment_name(self):
@@ -95,7 +96,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
     def choose_farm(self):
         while True:
             self.no_farms = 1
-            available_farms = jukebox.get_possible_farms(
+            available_farms = utils.get_possible_farms(
                 self.QUERY["cru"], self.QUERY["sru"], self.QUERY["mru"], self.nodes_count
             )
             available_farms = list(available_farms)
@@ -112,7 +113,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
     def payment(self):
         self.currencies = ["TFT"]
 
-        calculated_cost_per_cont = jukebox.calculate_payment_from_container_resources(
+        calculated_cost_per_cont = utils.calculate_payment_from_container_resources(
             self.QUERY["cru"],
             self.QUERY["mru"] * 1024,
             self.QUERY["sru"] * 1024,
@@ -120,7 +121,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
             farm_name=self.farm,
         )
 
-        payment_success, _, self.payment_id = jukebox.show_payment(
+        payment_success, _, self.payment_id = utils.show_payment(
             bot=self,
             cost=calculated_cost_per_cont * self.nodes_count + TRANSACTION_FEES,
             wallet_name=self.wallet.instance_name,
@@ -148,7 +149,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         # create pool
         self.md_show_update("Creating pool...")
         # Calculate required units from query
-        cloud_units = jukebox.calculate_required_units(
+        cloud_units = utils.calculate_required_units(
             cpu=self.QUERY["cru"],
             memory=self.QUERY["mru"] * 1024,
             disk_size=self.QUERY["sru"] * 1024,
@@ -172,28 +173,20 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
 
         self.md_show_update("Deploying network...")
         # Create network
-        _, self.wg_quick = deployment.deploy_network(
-            pool_rev_id, network_name=self.network_name, owner_tname=self.identity_name
-        )
+        _, self.wg_quick = deployment.deploy_network(network_name=self.network_name)
 
         # Get possible nodes,ip_addresses then spawn deployment of container in gevent
         self.md_show_update("Deploying containers...")
         deployment.deploy_all_containers(
-            farm_name=self.farm,
             number_of_deployments=self.nodes_count,
             network_name=self.network_name,
-            cru=self.QUERY["cru"],
-            sru=self.QUERY["sru"],
-            mru=self.QUERY["mru"],
-            pool_ids=pool_ids,
-            owner_tname=self.identity_name,
-            blockchain_type=self.SOLUTION_TYPE,
             env=self.env,
             metadata=self.metadata,
             flist=self.FLIST,
             entry_point=self.ENTRY_POINT,
             secret_env=self.secret_env,
         )
+        deployment.state = State.DEPLOYED
 
     @chatflow_step(title="Success", disable_previous=True, final_step=True)
     def success(self):
