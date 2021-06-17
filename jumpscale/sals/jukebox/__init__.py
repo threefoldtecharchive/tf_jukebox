@@ -37,8 +37,12 @@ class BlockchainStoredFactory(StoredFactory):
 
     def list_deployments(self, identity_name, solution_type):
         identity_name = j.data.text.removesuffix(identity_name, ".3bot")
-        _, _, instances = self.find_many(identity_name=identity_name, solution_type=solution_type)
-        return instances
+        instances = self.list(identity_name=identity_name)
+        deployments = []
+        for instance in instances:
+            if instance.solution_type == solution_type:
+                deployments.append(instance)
+        return deployments
 
     def delete(self, name):
         deployment = self.find(name)
