@@ -25,7 +25,6 @@ class UbuntuDeploy(JukeboxDeployChatflow):
     @chatflow_step(title="User configurations")
     def environment(self):
         self.env = {}
-        # self.env = {"pub_key": self.public_key}
         self.metadata = {
             "form_info": {"chatflow": self.SOLUTION_TYPE, "Solution name": self.deployment_name,},
         }
