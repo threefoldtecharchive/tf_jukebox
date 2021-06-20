@@ -28,8 +28,6 @@ class MonitorDeployments(BackgroundService):
     def _check_down_containers(self, deployment):
         user = j.data.text.removeprefix(deployment.identity_name, "jukebox_")
 
-        # for deployment_type, deployments in all_deployments.items():
-        #     for deployment in deployments:
 
         number_of_deployed = len([node for node in deployment.nodes if node.state == State.DEPLOYED])
         number_of_down_deployment = deployment.nodes_count - number_of_deployed
@@ -39,7 +37,7 @@ class MonitorDeployments(BackgroundService):
             )
             message = (
                 f"Dear {user},\n\n"
-                f"{number_of_down_deployment} node(s) of {deployment.solution_type} went down for your deployment {deployment.deployment_name}."
+                f"{number_of_down_deployment} node(s) of {deployment.solution_type} went down for your deployment {deployment.deployment_name}. The system will try to bring it back, Please refer for your jukebox dashboard for more information."
             )
             subject = "Jukebox Nodes Down"
             self._send_email(deployment.identity_name, subject, message)

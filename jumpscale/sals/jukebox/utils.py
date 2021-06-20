@@ -66,8 +66,6 @@ def get_possible_farms(cru, sru, mru, number_of_deployments):
         cru=cru * number_of_deployments,
         mru=mru * number_of_deployments,
         sru=sru * number_of_deployments,
-        # ip_version=None,
-        # no_nodes=1,
         accessnodes=True,
     )
     return farm_names

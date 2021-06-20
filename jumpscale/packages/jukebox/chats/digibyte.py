@@ -24,9 +24,6 @@ class DigibyteDeploy(JukeboxDeployChatflow):
     @chatflow_step(title="User configurations")
     def environment(self):
         self.env = {}
-        # self.env = {
-        #     "pub_key": self.public_key,
-        # }
         self.rpc_password = j.data.idgenerator.idgenerator.chars(8)
         self.secret_env = {"rpcuser": self.owner_tname, "rpcpasswd": self.rpc_password}
         self.metadata = {

@@ -101,7 +101,6 @@ class JukeboxDeployment(Base):
         )
 
         if result:
-            # self.md_show_update("Deploying Network on Nodes....")
             try:
                 for wid in result["ids"]:
                     success = deployer.wait_workload(wid, None, breaking_node_id=node.node_id, expiry=3)
@@ -219,7 +218,6 @@ class JukeboxDeployment(Base):
             env=env,
             interactive=False,
             entrypoint=entry_point,
-            # log_config=self.log_config,
             public_ipv6=True,
             **metadata,
             solution_uuid=uuid.uuid4().hex,
