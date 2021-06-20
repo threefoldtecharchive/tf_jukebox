@@ -5,7 +5,10 @@
     :error="error"
     :loading="loading"
   >
-    <template #default>
+    <template #default v-if="wid != null">
+      Are you sure you want to cancel {{wid}} from your deployment {{ deploymentname }}?
+    </template>
+    <template #default v-else>
       Are you sure you want to cancel {{ deploymentname }}?
     </template>
     <template #actions>
@@ -18,24 +21,46 @@
 <script>
 module.exports = {
   mixins: [dialog],
-  props: ["deploymentname","solutiontype"],
+  props: {
+    deploymentname:String,
+    wid:{type:Number,default:null},
+    solutiontype:String
+  },
   methods: {
     submit() {
       this.loading = true;
       this.error = null;
-      this.$api.solutions
-        .cancelDeployment(
-          this.deploymentname,this.solutiontype
-        )
-        .then((response) => {
-          console.log("cancelled");
-          // this.$router.go(0);
-          this.done("Deployment deleted");
-        })
-        .catch((err) => {
-          console.log("failed");
-          this.close();
-        });
+      if(this.wid == null){
+        this.$api.solutions
+          .cancelDeployment(
+            this.deploymentname,this.solutiontype
+          )
+          .then((response) => {
+            console.log("cancelled");
+            // this.$router.go(0);
+            this.done("Deployment deleted");
+          })
+          .catch((err) => {
+            console.log("failed");
+            this.close();
+          });
+      }
+      else{
+        this.$api.solutions
+          .cancelNode(
+            this.deploymentname,this.wid,this.solutiontype
+          )
+          .then((response) => {
+            console.log("cancelled");
+            // this.$router.go(0);
+            this.done("Node deleted");
+          })
+          .catch((err) => {
+            console.log("failed");
+            this.close();
+          });
+
+      }
     },
   },
 };

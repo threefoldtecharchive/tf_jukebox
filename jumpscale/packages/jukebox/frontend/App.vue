@@ -13,7 +13,6 @@
       </router-link>
       <v-spacer></v-spacer>
 
-
       <div v-if="this.notification">
         <v-badge
           color="warning"
@@ -22,14 +21,14 @@
           icon="mdi-alert-circle-outline"
           left
         >
-        <v-btn text @click="showWallet()">
-          <v-icon left>mdi-bank</v-icon>
-          Fund Wallet
-        </v-btn>
+          <v-btn text @click="showWallet()">
+            <v-icon left>mdi-bank</v-icon>
+            Fund Wallet
+          </v-btn>
         </v-badge>
       </div>
       <div v-else>
-       <v-btn text @click="showWallet()">
+        <v-btn text @click="showWallet()">
           <v-icon left>mdi-bank</v-icon>
           Fund Wallet
         </v-btn>
@@ -95,18 +94,19 @@
         v-model="dialogs.wallet"
       ></wallet-dialog>
     </v-app-bar>
-     <v-dialog v-if="dialogChanged" v-model="dialogChanged" width="400">
-        <v-alert
-      v-if="dialogChanged"
-      border="bottom"
-      colored-border
-      type="warning"
-      elevation="2"
-      class="mb-0"
-    > <strong> Warning <br /> </strong>
-    <p><span v-html="warningMessage"></span></p>
-    </v-alert>
-      </v-dialog>
+    <v-dialog v-if="dialogChanged" v-model="dialogChanged" width="400">
+      <v-alert
+        v-if="dialogChanged"
+        border="bottom"
+        colored-border
+        type="warning"
+        elevation="2"
+        class="mb-0"
+      >
+        <strong> Warning <br /> </strong>
+        <p><span v-html="warningMessage"></span></p>
+      </v-alert>
+    </v-dialog>
 
     <v-main>
       <router-view></router-view>
@@ -155,9 +155,15 @@ module.exports = {
         .getTopupInfo()
         .then((response) => {
           let newWallet = response.data.data;
-          if (newWallet === this.wallet || this.wallet.amount === newWallet.amount) {
+          if (
+            newWallet === this.wallet ||
+            this.wallet.amount === newWallet.amount
+          ) {
+            if (this.dialogChanged == true) {
+              return;
+            }
             this.dialogChanged = false;
-            return
+            return;
           }
           this.wallet = newWallet;
           if (this.wallet.amount > 0) {
@@ -165,8 +171,7 @@ module.exports = {
             this.notification = true;
             this.warningMessage =
               "Some of your deployemts that have auto extend enabled are about to expire. <br/> To ensure the auto extension, you need to fund the wallet through clicking the fund wallet button found in the upper right.";
-          }
-          else {
+          } else {
             this.notification = false;
           }
         })
@@ -176,9 +181,8 @@ module.exports = {
   mounted() {
     this.getCurrentUser();
   },
-  updated () {
+  updated() {
     this.getWalletInfo();
-
-  }
+  },
 };
 </script>

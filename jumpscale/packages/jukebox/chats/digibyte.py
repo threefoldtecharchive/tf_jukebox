@@ -1,7 +1,7 @@
 from jumpscale.loader import j
 from textwrap import dedent
 from jumpscale.sals.chatflows.chatflows import chatflow_step
-from jumpscale.packages.jukebox.sals.jukebox_deploy_chatflow import JukeboxDeployChatflow
+from jumpscale.sals.jukebox.jukebox_deploy_chatflow import JukeboxDeployChatflow
 
 
 class DigibyteDeploy(JukeboxDeployChatflow):
@@ -9,13 +9,12 @@ class DigibyteDeploy(JukeboxDeployChatflow):
     SOLUTION_TYPE = "digibyte"
     QUERY = {"cru": 1, "sru": 1, "mru": 1}
     ENTERY_POINT = "/start_dgb.sh"
-    FLIST = "https://hub.grid.tf/ashraf.3bot/arrajput-digibyte-2.7.flist"
+    FLIST = "https://hub.grid.tf/ashraf.3bot/arrajput-digibyte-flist-1.0.flist"
     steps = [
         "get_deployment_name",
         "block_chain_info",
         "choose_farm",
         "set_expiration",
-        "upload_public_key",
         "environment",
         "payment",
         "deploy",
@@ -24,14 +23,9 @@ class DigibyteDeploy(JukeboxDeployChatflow):
 
     @chatflow_step(title="User configurations")
     def environment(self):
-        self.env = {
-            "pub_key": self.public_key,
-            }
+        self.env = {}
         self.rpc_password = j.data.idgenerator.idgenerator.chars(8)
-        self.secret_env = {
-            "rpcuser": self.owner_tname,
-            "rpcpasswd": self.rpc_password
-        }
+        self.secret_env = {"rpcuser": self.owner_tname, "rpcpasswd": self.rpc_password}
         self.metadata = {
             "form_info": {
                 "chatflow": self.SOLUTION_TYPE,
@@ -50,5 +44,6 @@ class DigibyteDeploy(JukeboxDeployChatflow):
         password: {self.rpc_password}<br />
         """
         self.md_show(dedent(message), md=True)
+
 
 chat = DigibyteDeploy

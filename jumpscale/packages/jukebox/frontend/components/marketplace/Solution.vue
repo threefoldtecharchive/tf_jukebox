@@ -55,17 +55,33 @@
               <template slot="no-data">No {{solution.name.toLowerCase()}} instances available</p></template>
 
               <template v-slot:expanded-item="{ headers, item }">
+
                 <td :colspan="headers.length" class="py-6 font-weight-black">
-                    <p class="mb-4">Active Workloads</p>
+                    <p class="mb-4">Workloads</p>
                     <v-data-table
                       :loading="loading"
                       :headers="workloadHeaders"
-                      :items="item.workloads"
+                      :items="item.nodes"
                       class="elevation-1"
                       hide-default-footer
+                      sort-by="state"
+                      sort-desc
 
                     >
                       <template slot="no-data">No workloads available</p></template>
+
+                      <template v-slot:item.actions="{ item }">
+                        <v-tooltip top v-if="item.state != 'DELETED'">
+                          <template v-slot:activator="{ on, attrs }">
+                            <v-btn icon @click.stop="cancelNode(item.deploymentName,item.wid)">
+                              <v-icon v-bind="attrs" v-on="on" color="#810000"
+                                >mdi-delete</v-icon
+                              >
+                            </v-btn>
+                          </template>
+                          <span>Delete</span>
+                        </v-tooltip>
+                      </template>
                     </v-data-table>
                 </td>
               </template>
@@ -73,7 +89,7 @@
               <template v-slot:item.actions="{ item }">
                 <v-tooltip top>
                   <template v-slot:activator="{ on, attrs }">
-                    <v-btn icon @click.stop="cancelDeployment(item)">
+                    <v-btn icon @click.stop="cancelDeployment(item.name)">
                       <v-icon v-bind="attrs" v-on="on" color="#810000"
                         >mdi-delete</v-icon
                       >
@@ -93,13 +109,13 @@
                   </template>
                   <span>Auto Extend Deployment</span>
                 </v-tooltip>
-                <v-tooltip top v-if="item.active_workloads !== item.total">
+                <v-tooltip top v-if="item.activeworkloads !== item.total">
                   <template v-slot:activator="{ on, attrs }">
                     <v-icon v-bind="attrs" v-on="on" color="#810000"
                       >mdi-alert-outline</v-icon
                     >
                   </template>
-                  <span>{{ item.total - item.active_workloads }} node(s) of this deployment went down</span>
+                  <span>{{ item.total - item.activeworkloads }} node(s) of this deployment went down</span>
                 </v-tooltip>
               </template>
 
@@ -109,7 +125,7 @@
         </v-card>
       </template>
     </base-component>
-    <cancel-deployment v-if="selected" v-model="dialogs.cancelDeployment" @done="getDeployedSolutions(type)" :deploymentname="selected.name" :solutiontype="type" ></cancel-deployment>
+    <cancel-deployment v-if="selected" v-model="dialogs.cancelDeployment" @done="getDeployedSolutions(type)" :deploymentname="selected" :wid="selectedWid" :solutiontype="type" ></cancel-deployment>
   </div>
 </template>
 
@@ -126,6 +142,7 @@ module.exports = {
     return {
       loading: true,
       selected: null,
+      selectedWid: null,
       dialogs: {
         info: false,
         cancelDeployment: false,
@@ -133,19 +150,22 @@ module.exports = {
       mainheaders: [
         { text: "Deployment Name", value: "name" },
         { text: "Farm Name", value: "farm" },
-        { text: "Pool ID", value: "pool_id" },
-        { text: "Total Nodes", value: "total" },
+        { text: "Pool ID", value: "pool" },
+        { text: "Total Active Nodes", value: "total" },
         { text: "Expiration Date", value: "expiration" },
         { text: "Actions", value: "actions", sortable: false },
         { text: "", value: "data-table-expand" },
       ],
       workloadHeaders: [
-        { text: "Id", value: "id" },
-        { text: "IP address", value: "ip" },
+        { text: "Id", value: "wid" },
+        { text: "IPv4 address", value: "ipv4" },
+        { text: "IPv6 address", value: "ipv6" },
         { text: "Cpu", value: "cpu" },
         { text: "Memory /MB", value: "memory" },
         { text: "Disk Size /MB", value: "disk" },
+        { text: "State", value: "state" },
         { text: "Creation Time", value: "creation" },
+        { text: "Actions", value: "actions", sortable: false },
       ],
 
       deployedSolutions: [],
@@ -179,8 +199,13 @@ module.exports = {
       return localStorage.hasOwnProperty(solution_type);
     },
 
-    cancelDeployment(data) {
-      this.selected = data;
+    cancelDeployment(deploymentName) {
+      this.selected = deploymentName;
+      this.dialogs.cancelDeployment = true;
+    },
+    cancelNode(deploymentName, wid) {
+      this.selected = deploymentName;
+      this.selectedWid = wid;
       this.dialogs.cancelDeployment = true;
     },
     getDeployedSolutions(solution_type) {
@@ -190,28 +215,42 @@ module.exports = {
           this.deployedSolutions = response.data.data;
 
           for (let i = 0; i < this.deployedSolutions.length; i++) {
-            this.deployedSolutions[i]["total"] =
-              this.deployedSolutions[i].metadata.number_of_nodes;
+            this.deployedSolutions[i].pool =
+              this.deployedSolutions[i].pool_ids[0];
             this.deployedSolutions[i].expiration = new Date(
-              this.deployedSolutions[i].expiration * 1000
+              this.deployedSolutions[i].expiration_date * 1000
             ).toLocaleString("en-GB");
-            for (
-              let j = 0;
-              j < this.deployedSolutions[i].workloads.length;
-              j++
-            ) {
-              let workload = this.deployedSolutions[i].workloads[j];
-              // this.deployedSolutions[i]["id"] = workload.id
-              this.deployedSolutions[i]["active_workloads"] =
-                this.deployedSolutions[i].workloads.length;
-              workload["cpu"] = workload.capacity.cpu;
-              workload["memory"] = workload.capacity.memory;
-              workload["disk"] = workload.capacity.disk_size;
-              workload["ip"] = workload.network_connection[0].ipaddress;
+            this.deployedSolutions[i].autoextend =
+              this.deployedSolutions[i].auto_extend;
+            this.deployedSolutions[i].name =
+              this.deployedSolutions[i].deployment_name;
+            this.deployedSolutions[i].farm =
+              this.deployedSolutions[i].farm_name;
+
+            this.deployedSolutions[i]["total"] =
+              this.deployedSolutions[i].nodes_count;
+
+            let activeWorkloads = 0;
+            for (let j = 0; j < this.deployedSolutions[i].nodes.length; j++) {
+              let workload = this.deployedSolutions[i].nodes[j];
+              workload["cpu"] = this.deployedSolutions[i].cpu;
+              workload["memory"] = this.deployedSolutions[i].memory;
+              workload["disk"] = this.deployedSolutions[i].disk_size;
+              workload["disk"] = this.deployedSolutions[i].disk_size;
+
+              workload["ipv4"] = workload.ipv4_address;
+              workload["ipv6"] = workload.ipv6_address;
+              workload["deploymentName"] =
+                this.deployedSolutions[i].deployment_name;
               workload["creation"] = new Date(
-                workload.info.epoch * 1000
+                workload.creation_time * 1000
               ).toLocaleString("en-GB");
+              // count number of workloads that are active and deployed
+              if (workload.state == "DEPLOYED") {
+                activeWorkloads += 1;
+              }
             }
+            this.deployedSolutions[i]["activeworkloads"] = activeWorkloads;
           }
         })
         .finally(() => {
@@ -248,6 +287,6 @@ a.chatflowInfo {
   box-shadow: none !important;
 }
 .switch-div {
-display: inline-block;
+  display: inline-block;
 }
 </style>

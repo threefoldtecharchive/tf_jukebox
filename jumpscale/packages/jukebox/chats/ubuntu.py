@@ -1,6 +1,6 @@
 from jumpscale.loader import j
 from jumpscale.sals.chatflows.chatflows import chatflow_step
-from jumpscale.packages.jukebox.sals.jukebox_deploy_chatflow import JukeboxDeployChatflow
+from jumpscale.sals.jukebox.jukebox_deploy_chatflow import JukeboxDeployChatflow
 
 
 class UbuntuDeploy(JukeboxDeployChatflow):
@@ -15,7 +15,6 @@ class UbuntuDeploy(JukeboxDeployChatflow):
         "block_chain_info",
         "choose_farm",
         "set_expiration",
-        "upload_public_key",
         "environment",
         "payment",
         "deploy",
@@ -25,13 +24,9 @@ class UbuntuDeploy(JukeboxDeployChatflow):
 
     @chatflow_step(title="User configurations")
     def environment(self):
-        self.env = {"pub_key": self.public_key}
+        self.env = {}
         self.metadata = {
-            "form_info": {
-                "chatflow": self.SOLUTION_TYPE,
-                "Solution name": self.deployment_name,
-                "number_of_nodes": self.nodes_count,
-            },
+            "form_info": {"chatflow": self.SOLUTION_TYPE, "Solution name": self.deployment_name,},
         }
         self.secret_env = {}
 

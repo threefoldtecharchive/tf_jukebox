@@ -1,31 +1,48 @@
+from contextlib import ContextDecorator
 import random
 from textwrap import dedent
 
+from jumpscale.clients.explorer.models import DiskType
 from jumpscale.clients.stellar import TRANSACTION_FEES
 from jumpscale.loader import j
 from jumpscale.sals.chatflows.chatflows import GedisChatBot, StopChatFlow, chatflow_step
 from jumpscale.sals.marketplace.apps_chatflow import MarketPlaceAppsChatflow
 
-from jumpscale.packages.jukebox.sals import jukebox
+from jumpscale.sals.jukebox import utils
+from jumpscale.sals.jukebox.models import State
 
 IDENTITY_PREFIX = "jukebox"
 
 
+class new_jukebox_context(ContextDecorator):
+    def __init__(self, instance_name, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.instance_name = instance_name
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if exc_type:
+            j.logger.error(f"new_jukebox_context: deployment failed due to exception: {exc_value}")
+            j.sals.jukebox.delete(self.instance_name)
+
+
 class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
     ENTRY_POINT = ""
+    DISK_TYPE = DiskType.SSD
     title = "Blockchain"
     steps = [
         "get_deployment_name",
         "block_chain_info",
         "choose_farm",
         "set_expiration",
-        "upload_public_key",
         "payment",
         "deploy",
         "success",
     ]
-    # FLIST = "<flist_url>"
-    # QUERY = {"cru": 1, "sru": 1, "mru": 1}
+    # FLIST = "<flist_url>" # needs to be defined in the child chatflows
+    QUERY = {"cru": 1, "sru": 1, "mru": 1}
 
     def _init(self):
         self.user_info_data = self.user_info()
@@ -56,15 +73,17 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
                 j.logger.info(f"This system doesn't have {wname} configured")
                 raise StopChatFlow(f"{wname} doesn't exist, please contact support.")
 
-        self.wallet = jukebox.get_or_create_user_wallet(wallet_name)
+        self.wallet = utils.get_or_create_user_wallet(wallet_name)
 
     @chatflow_step(title="Deployment Name")
     def get_deployment_name(self):
         self._init()
         deployment_names = []
-        all_deployments = jukebox.list_deployments(identity_name=self.identity_name, solution_type=self.SOLUTION_TYPE)
+        all_deployments = j.sals.jukebox.list_deployments(
+            identity_name=self.identity_name, solution_type=self.SOLUTION_TYPE
+        )
         if all_deployments:
-            deployment_names = [deployment["name"] for deployment in all_deployments[self.SOLUTION_TYPE]]
+            deployment_names = [deployment.deployment_name for deployment in all_deployments]
         self.deployment_name = self.string_ask(
             "Please enter a name for your Deployment (will be used in listing and deletions in the future)",
             required=True,
@@ -79,10 +98,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         form = self.new_form()
         self.nodes_count = form.int_ask("Please enter the number of nodes you want to deploy", required=True)
         self.farm_selection = form.single_choice(
-            "Do you wish to select the farm automatically?",
-            ["Yes", "No"],
-            required=True,
-            default="Automatically Select Farm",
+            "Do you wish to select the farm automatically?", ["Yes", "No"], required=True, default="Yes",
         )
         form.ask()
         self.nodes_count = self.nodes_count.value
@@ -95,7 +111,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
     def choose_farm(self):
         while True:
             self.no_farms = 1
-            available_farms = jukebox.get_possible_farms(
+            available_farms = utils.get_possible_farms(
                 self.QUERY["cru"], self.QUERY["sru"], self.QUERY["mru"], self.nodes_count
             )
             available_farms = list(available_farms)
@@ -108,11 +124,17 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         else:
             self.farm = random.choice(available_farms)
 
+    @chatflow_step(title="New Expiration")
+    def set_expiration(self):
+        self.expiration = j.sals.marketplace.deployer.ask_expiration(
+            self, default=j.data.time.utcnow().timestamp + 3600 * 25
+        )
+
     @chatflow_step(title="Payment")
     def payment(self):
         self.currencies = ["TFT"]
 
-        calculated_cost_per_cont = jukebox.calculate_payment_from_container_resources(
+        calculated_cost_per_cont = utils.calculate_payment_from_container_resources(
             self.QUERY["cru"],
             self.QUERY["mru"] * 1024,
             self.QUERY["sru"] * 1024,
@@ -120,7 +142,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
             farm_name=self.farm,
         )
 
-        payment_success, _, self.payment_id = jukebox.show_payment(
+        payment_success, _, self.payment_id = utils.show_payment(
             bot=self,
             cost=calculated_cost_per_cont * self.nodes_count + TRANSACTION_FEES,
             wallet_name=self.wallet.instance_name,
@@ -132,61 +154,65 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
 
     @chatflow_step(title="Deployment")
     def deploy(self):
-        # extend_pool
-        self.md_show_update("Creating pool...")
-        # Calculate required units from query
-        cloud_units = jukebox.calculate_required_units(
-            cpu=self.QUERY["cru"] * 1,
-            memory=self.QUERY["mru"] * 1024,
-            disk_size=self.QUERY["sru"] * 1024,
-            duration_seconds=self.expiration,
-            number_of_containers=self.nodes_count,
+        deployment = j.sals.jukebox.new(
+            solution_type=self.SOLUTION_TYPE,
+            deployment_name=self.deployment_name,
+            identity_name=self.identity_name,
+            nodes_count=self.nodes_count,
         )
+        deployment.cpu = self.QUERY["cru"]
+        deployment.memory = self.QUERY["mru"] * 1024
+        deployment.disk_size = self.QUERY["sru"] * 1024
+        deployment.disk_type = self.DISK_TYPE
+        deployment.expiration_date = self.expiration + j.data.time.utcnow().timestamp
+        deployment.farm_name = self.farm
+        deployment.secret_env = j.sals.reservation_chatflow.deployer.encrypt_metadata(
+            self.secret_env, self.identity_name
+        )
+        deployment.save()
 
-        # TODO to be done for all farms to have a list of pool_ids, the following is per one farm
-        try:
-            pool_rev_id = jukebox.create_capacity_pool(
-                self.wallet,
-                cu=cloud_units["cu"],
-                su=cloud_units["su"],
-                ipv4us=0,
-                farm=self.farm,
-                identity_name=self.identity_name,
+        with new_jukebox_context(deployment.instance_name):
+            # create pool
+            self.md_show_update("Creating pool...")
+            # Calculate required units from query
+            cloud_units = utils.calculate_required_units(
+                cpu=self.QUERY["cru"],
+                memory=self.QUERY["mru"] * 1024,
+                disk_size=self.QUERY["sru"] * 1024,
+                duration_seconds=self.expiration,
+                number_of_containers=self.nodes_count,
             )
 
-            pool_ids = [pool_rev_id]
-        except Exception as e:
-            j.logger.exception(f"Failed to deploy", exception=e)
-            j.sals.billing.issue_refund(self.payment_id)
-            self.stop("Failed to deploy")
+            # TODO to be done for all farms to have a list of pool_ids, the following is per one farm
+            try:
+                pool_rev_id = deployment.create_capacity_pool(
+                    self.wallet, cu=cloud_units["cu"], su=cloud_units["su"], ipv4us=0, farm=self.farm
+                )
 
-        self.network_name = f"jukebox_{self.owner_tname}_{pool_rev_id}"
+                pool_ids = [pool_rev_id]
+            except Exception as e:
+                j.logger.exception(f"Failed to deploy", exception=e)
+                j.sals.billing.issue_refund(self.payment_id)
+                self.stop("Failed to deploy")
 
-        self.md_show_update("Deploying network...")
-        # Create network
-        _, self.wg_quick = jukebox.deploy_network(
-            self.identity_name, pool_rev_id, network_name=self.network_name, owner_tname=self.identity_name
-        )
+            self.network_name = f"jukebox_{self.owner_tname}_{pool_rev_id}"
 
-        # Get possible nodes,ip_addresses then spawn deployment of container in gevent
-        self.md_show_update("Deploying containers...")
-        jukebox.deploy_all_containers(
-            farm_name=self.farm,
-            number_of_deployments=self.nodes_count,
-            network_name=self.network_name,
-            cru=self.QUERY["cru"],
-            sru=self.QUERY["sru"],
-            mru=self.QUERY["mru"],
-            pool_ids=pool_ids,
-            identity_name=self.identity_name,
-            owner_tname=self.identity_name,
-            blockchain_type=self.SOLUTION_TYPE,
-            env=self.env,
-            metadata=self.metadata,
-            flist=self.FLIST,
-            entry_point=self.ENTRY_POINT,
-            secret_env=self.secret_env,
-        )
+            self.md_show_update("Deploying network...")
+            # Create network
+            _, self.wg_quick = deployment.deploy_network(network_name=self.network_name)
+
+            # Get possible nodes,ip_addresses then spawn deployment of container in gevent
+            self.md_show_update("Deploying containers...")
+            deployment.deploy_all_containers(
+                number_of_deployments=self.nodes_count,
+                network_name=self.network_name,
+                env=self.env,
+                metadata=self.metadata,
+                flist=self.FLIST,
+                entry_point=self.ENTRY_POINT,
+                secret_env=self.secret_env,
+            )
+            deployment._update_state(State.DEPLOYED)
 
     @chatflow_step(title="Success", disable_previous=True, final_step=True)
     def success(self):
