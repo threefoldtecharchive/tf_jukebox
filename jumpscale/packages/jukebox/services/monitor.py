@@ -28,7 +28,6 @@ class MonitorDeployments(BackgroundService):
     def _check_down_containers(self, deployment):
         user = j.data.text.removeprefix(deployment.identity_name, "jukebox_")
 
-
         number_of_deployed = len([node for node in deployment.nodes if node.state == State.DEPLOYED])
         number_of_down_deployment = deployment.nodes_count - number_of_deployed
         if number_of_down_deployment > 0:
