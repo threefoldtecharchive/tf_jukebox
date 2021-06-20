@@ -89,30 +89,30 @@ class JukeboxDeployment(Base):
         else:
             excluded_nodes = j.data.serializers.json.loads(excluded_nodes.decode())
 
-        network_view = deployer.get_network_view(network_name, identity_name=self.identity_name)
-        network_view_copy = network_view.copy()
-        result = deployer.add_network_node(
-            network_view.name,
-            node,
-            self.pool_ids[0],
-            network_view_copy,
-            identity_name=self.identity_name,
-            owner=self.identity_name,
-        )
+        try:
+            network_view = deployer.get_network_view(network_name, identity_name=self.identity_name)
+            network_view_copy = network_view.copy()
+            result = deployer.add_network_node(
+                network_view.name,
+                node,
+                self.pool_ids[0],
+                network_view_copy,
+                identity_name=self.identity_name,
+                owner=self.identity_name,
+            )
 
-        if result:
-            # self.md_show_update("Deploying Network on Nodes....")
-            try:
+            if result:
+                # self.md_show_update("Deploying Network on Nodes....")
                 for wid in result["ids"]:
                     success = deployer.wait_workload(wid, None, breaking_node_id=node.node_id, expiry=3)
                     if not success:
                         raise DeploymentFailed(f"Failed to add node {node.node_id} to network {wid}", wid=wid)
-            except Exception as e:
-                j.logger.exception(f"Failed to deploy network on {node.node_id}", exception=e)
-                excluded_nodes = set(excluded_nodes)
-                excluded_nodes.add(node.node_id)
-                j.core.db.set("excluded_nodes", j.data.serializers.json.dumps(list(excluded_nodes)), ex=3 * 60 * 60)
-                return
+        except Exception as e:
+            j.logger.exception(f"Failed to deploy network on {node.node_id}", exception=e)
+            excluded_nodes = set(excluded_nodes)
+            excluded_nodes.add(node.node_id)
+            j.core.db.set("excluded_nodes", j.data.serializers.json.dumps(list(excluded_nodes)), ex=3 * 60 * 60)
+            return
 
         network_view_copy = network_view_copy.copy()
         free_ips = network_view_copy.get_node_free_ips(node)
@@ -284,7 +284,7 @@ class JukeboxDeployment(Base):
             if not number_deployed_containers:
                 break
             if node.state == State.ERROR:
-                nodes.pop(node)
+                nodes.remove(node)
                 number_deployed_containers -= 1
 
         self._update_nodes(nodes)

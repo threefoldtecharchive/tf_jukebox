@@ -124,6 +124,12 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         else:
             self.farm = random.choice(available_farms)
 
+    @chatflow_step(title="New Expiration")
+    def set_expiration(self):
+        self.expiration = j.sals.marketplace.deployer.ask_expiration(
+            self, default=j.data.time.utcnow().timestamp + 3600 * 25
+        )
+
     @chatflow_step(title="Payment")
     def payment(self):
         self.currencies = ["TFT"]
@@ -206,7 +212,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
                 entry_point=self.ENTRY_POINT,
                 secret_env=self.secret_env,
             )
-            deployment.state = State.DEPLOYED
+            deployment._update_state(State.DEPLOYED)
 
     @chatflow_step(title="Success", disable_previous=True, final_step=True)
     def success(self):
