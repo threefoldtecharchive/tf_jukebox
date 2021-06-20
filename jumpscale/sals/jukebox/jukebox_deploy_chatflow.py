@@ -41,7 +41,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         "deploy",
         "success",
     ]
-    # FLIST = "<flist_url>"
+    # FLIST = "<flist_url>" # needs to be defined in the child chatflows
     QUERY = {"cru": 1, "sru": 1, "mru": 1}
 
     def _init(self):
