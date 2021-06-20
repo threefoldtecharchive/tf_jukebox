@@ -91,7 +91,8 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
             max_length=20,
         )
 
-    def _blockchain_form(self):
+    @chatflow_step(title="Blockchain Information")
+    def block_chain_info(self):
         # location
         # num of nodes
         # node type
@@ -102,10 +103,6 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         )
         form.ask()
         self.nodes_count = self.nodes_count.value
-
-    @chatflow_step(title="Blockchain Information")
-    def block_chain_info(self):
-        self._blockchain_form()
 
     @chatflow_step(title="Choose farm")
     def choose_farm(self):

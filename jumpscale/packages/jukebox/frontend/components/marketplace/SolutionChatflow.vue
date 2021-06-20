@@ -4,10 +4,18 @@
 
 <script>
 module.exports = {
-  props: { topic: String },
+  props: { topic: String, queryparams: { type: Object, default: null } },
   computed: {
     url() {
-      return `/jukebox/chats/${this.topic}?noheader=yes`;
+      if (this.queryparams !== null) {
+        let chatflowUrl = `/jukebox/chats/${this.topic}#/?noheader=yes&`;
+        Object.keys(this.queryparams).forEach((key) => {
+          chatflowUrl += `${key}=${this.queryparams[key]}&`;
+        });
+        return chatflowUrl;
+      } else {
+        return `/jukebox/chats/${this.topic}#/?noheader=yes`;
+      }
     },
   },
   mounted() {
@@ -22,11 +30,18 @@ module.exports = {
           event.data.slice(0, len) != message
         )
           return;
-        let topic = event.data.slice(len);
-        this.$router.push({
-          name: "Solution",
-          params: { type: topic },
-        });
+        if (this.topic == "extend") {
+          this.$router.push({
+            name: "Solution",
+            params: { type: this.queryparams["solution_type"] },
+          });
+        } else {
+          let topic = event.data.slice(len);
+          this.$router.push({
+            name: "Solution",
+            params: { type: topic },
+          });
+        }
       });
     }
   },

@@ -62,6 +62,7 @@
                       :loading="loading"
                       :headers="workloadHeaders"
                       :items="item.nodes"
+                      :item-class="itemRowBackground"
                       class="elevation-1"
                       hide-default-footer
                       sort-by="state"
@@ -87,6 +88,16 @@
               </template>
 
               <template v-slot:item.actions="{ item }">
+                <v-tooltip top>
+                  <template v-slot:activator="{ on, attrs }">
+                    <v-btn icon @click.stop="openExtendChatflow(item.name)">
+                      <v-icon v-bind="attrs" v-on="on" color="#1b4f72"
+                        >mdi-plus</v-icon
+                      >
+                    </v-btn>
+                  </template>
+                  <span>Add Nodes</span>
+                </v-tooltip>
                 <v-tooltip top>
                   <template v-slot:activator="{ on, attrs }">
                     <v-btn icon @click.stop="cancelDeployment(item.name)">
@@ -157,7 +168,7 @@ module.exports = {
         { text: "", value: "data-table-expand" },
       ],
       workloadHeaders: [
-        { text: "Id", value: "wid" },
+        { text: "ID", value: "wid" },
         { text: "IPv4 address", value: "ipv4" },
         { text: "IPv6 address", value: "ipv6" },
         { text: "Cpu", value: "cpu" },
@@ -268,6 +279,16 @@ module.exports = {
           this.loading = false;
         });
     },
+    itemRowBackground: function (item) {
+     return item.state == "DELETED" ? 'deleted-node' : ''
+  },
+  openExtendChatflow(deploymentName) {
+      let queryparams = { deployment_name: deploymentName, solution_type: this.type };
+      this.$router.push({
+        name: "SolutionChatflow",
+        params: { topic: "extend", queryparams: queryparams },
+      });
+    },
   },
   mounted() {
     this.getDeployedSolutions(this.type);
@@ -288,5 +309,8 @@ a.chatflowInfo {
 }
 .switch-div {
   display: inline-block;
+}
+.deleted-node {
+  color: rgb(150,0,0, .7)
 }
 </style>
