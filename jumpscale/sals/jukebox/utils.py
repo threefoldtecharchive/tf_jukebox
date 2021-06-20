@@ -99,17 +99,20 @@ def calculate_funding_amount(identity_name):
             continue
         if deployment.expiration_date.timestamp() > j.data.time.utcnow().timestamp + 60 * 60 * 24 * 2:
             continue
-        pool_id = deployment.pool_ids[0]  # TODO change when having multiple pools
-        pool = zos.pools.get(pool_id)  # TODO: set active unit while listing
-        cus = pool.active_cu
-        sus = pool.active_su
-        ipv4us = pool.active_ipv4
+        cloud_units = calculate_required_units(
+            cpu=deployment.cpu,
+            memory=deployment.memory,
+            disk_size=deployment.disk_size,
+            duration_seconds=60 * 60 * 24 * 30,
+            number_of_containers=deployment.nodes_count,
+        )
         farm_id = zos._explorer.farms.get(farm_name=deployment.farm_name).id
         farm_prices = zos._explorer.farms.get_deal_for_threebot(farm_id, j.core.identity.me.tid)[
             "custom_cloudunits_price"
         ]
-        price += zos._explorer.prices.calculate(cus=cus, sus=sus, ipv4us=ipv4us, farm_prices=farm_prices)
-        price *= 60 * 60 * 24 * 30
+        price += zos._explorer.prices.calculate(
+            cus=cloud_units["cu"], sus=cloud_units["su"], ipv4us=cloud_units["ipv4u"], farm_prices=farm_prices
+        )
         price += TRANSACTION_FEES
         total_price += price
     return total_price
