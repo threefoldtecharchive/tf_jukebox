@@ -92,7 +92,7 @@
                   <template v-slot:activator="{ on, attrs }">
                     <v-btn icon @click.stop="openExtendChatflow(item.name)">
                       <v-icon v-bind="attrs" v-on="on" color="#1b4f72"
-                        >mdi-plus</v-icon
+                        >mdi-plus-network-outline</v-icon
                       >
                     </v-btn>
                   </template>
