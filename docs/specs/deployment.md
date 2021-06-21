@@ -1,6 +1,14 @@
-# Jukebox installer
+# Jukebox Installer
 
 This manual will go through setting up an environment for Jukebox.
+
+## System requirements
+
+```bash
+apt-get update
+apt-get install -y git python3-venv python3-pip redis-server tmux nginx
+pip3 install poetry
+```
 
 ## Requirements
 
@@ -28,27 +36,44 @@ poetry install
 
 - Create/Import the required wallets mentioned in the previous requirements through `jsng` shell
 
-  ```bash
+  ```python
   # activation wallet
-  activation_wallet = j.clients.stellar.new("activation_wallet") 
+  activation_wallet = j.clients.stellar.new("activation_wallet")
   # you can pass the secret if you have a wallet already, and skip the activation step, needs to have xlms for activation
   activation_wallet.secret = <your secret>
   activation_wallet.activate_through_threefold_service()
   activation.save()
   ```
 
-- Add billing package from Admin dashboard.
-- Add jukebox package.
+- Add billing package.
 
-```bash
+```python
 server = j.servers.threebot.get("default")
-server.packages.add(path="<repo path>/tf_jukebox/jumpscale/packages/jukebox")1
+path = j.sals.fs.parent(j.packages.billing.__file__)
+server.packages.add(path=path)
 ```
 
-- Start 3Bot server from jsng
+- Add jukebox package.
 
-```bash
+```python
+server = j.servers.threebot.get("default")
+server.packages.add(path="<repo path>/tf_jukebox/jumpscale/packages/jukebox")
+```
+
+- Create an identity.
+  **Note:** network can either be `testnet` or `devnet` or empty for mainnet.
+
+```python
+identity = j.core.identity.new("default", <identity_name>, <email>, <words>, f"https://explorer.{network}.grid.tf/api/v1")
+identity.register()
+identity.set_default()
+identity.save()
+```
+
+- Start 3Bot server from jsng.
+
+```python
 j.servers.threebot.start_default()
 ```
 
-- Visit the domain you entered in package.toml should redirect you to the main page
+- Visit the domain you entered in package.toml should redirect you to the main page.
