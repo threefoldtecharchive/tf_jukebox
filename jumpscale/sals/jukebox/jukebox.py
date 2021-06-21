@@ -248,7 +248,7 @@ class JukeboxDeployment(Base):
     @lock_deployment
     def delete_node(self, wid):
         for node in self.nodes:
-            if node.wid == wid:
+            if node.wid == wid and node.state != State.DELETED:
                 node.state = State.DELETED
                 self.nodes_count -= 1
                 self.save()

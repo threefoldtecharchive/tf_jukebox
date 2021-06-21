@@ -201,6 +201,7 @@ module.exports = {
 
     cancelDeployment(deploymentName) {
       this.selected = deploymentName;
+      this.selectedWid = null;
       this.dialogs.cancelDeployment = true;
     },
     cancelNode(deploymentName, wid) {
