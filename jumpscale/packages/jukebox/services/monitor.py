@@ -18,6 +18,8 @@ class MonitorDeployments(BackgroundService):
         j.logger.info("Starting monitoring deployments...")
         for deployment_instance_name in j.sals.jukebox.list_all():
             deployment = j.sals.jukebox.find(deployment_instance_name)
+            if deployment.state == State.EXPIRED:
+                continue
             self._check_down_containers(deployment)
             self._auto_extend_pool(deployment)
 
