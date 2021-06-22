@@ -268,6 +268,7 @@ class JukeboxDeployment(Base):
             if node.wid == wid and node.state != State.DELETED:
                 node.state = State.DELETED
                 self.nodes_count -= 1
+                self.save()
                 self.zos.workloads.decomission(node.wid)
 
     def deploy_from_workload(self, number_of_containers, final_state=State.DEPLOYED, redeploy=False):
