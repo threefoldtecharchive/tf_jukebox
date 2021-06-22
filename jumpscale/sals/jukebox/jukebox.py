@@ -69,16 +69,33 @@ class JukeboxDeployment(Base):
 
         return wrapper
 
+    def wait_pool_payment(self, reservation_id, exp=5):
+        j.logger.info(f"waiting pool payment for reservation_id: {reservation_id}")
+        expiration = j.data.time.now().timestamp + exp * 60
+        while j.data.time.get().timestamp < expiration:
+            payment_info = self.zos.pools.get_payment_info(reservation_id)
+            if payment_info.paid and payment_info.released:
+                return True
+            gevent.sleep(1)
+        return False
+
     def create_capacity_pool(self, wallet, cu=100, su=100, ipv4us=0, farm="freefarm"):
         payment_detail = self.zos.pools.create(cu=cu, su=su, ipv4us=ipv4us, farm=farm)
         # wallet = j.clients.stellar.get(wallet)
-        txs = self.zos.billing.payout_farmers(wallet, payment_detail)
-        pool = self.zos.pools.get(payment_detail.reservation_id)
-        while pool.cus == 0:
-            pool = self.zos.pools.get(payment_detail.reservation_id)
-            sleep(1)
+        self.zos.billing.payout_farmers(wallet, payment_detail)
+        if not self.wait_pool_payment(payment_detail.reservation_id):
+            raise DeploymentFailed(f"Failed to pay to pool {payment_detail.reservation_id}")
+
         # TODO add in QR code with payment total for users
         self.pool_ids.append(payment_detail.reservation_id)
+        self.save()
+        return payment_detail.reservation_id
+
+    def extend_capacity_pool(self, pool_id, wallet, cu=100, su=100, ipv4us=0):
+        payment_detail = self.zos.pools.extend(pool_id=pool_id, cu=cu, su=su, ipv4us=ipv4us)
+        self.zos.billing.payout_farmers(wallet, payment_detail)
+        if not self.wait_pool_payment(payment_detail.reservation_id):
+            raise DeploymentFailed(f"Failed to pay to pool {payment_detail.reservation_id}")
         return payment_detail.reservation_id
 
     def get_container_ip(self, network_name, node, excluded_ips=None):
@@ -250,11 +267,10 @@ class JukeboxDeployment(Base):
         for node in self.nodes:
             if node.wid == wid and node.state != State.DELETED:
                 node.state = State.DELETED
-                self.nodes_count -= 1
-                self.save()
+                self._update_nodes_count(self.nodes_count - 1)
                 self.zos.workloads.decomission(node.wid)
 
-    def redeploy_containers(self, number_of_containers):
+    def deploy_from_workload(self, number_of_containers, final_state=State.DEPLOYED, redeploy=False):
         self._update_state(State.DEPLOYING)
         wid = self.nodes[0].wid
         workload = self.zos.workloads.get(wid)
@@ -274,6 +290,12 @@ class JukeboxDeployment(Base):
             flist=workload.flist,
             entry_point=workload.entrypoint,
         )
+        if not redeploy:
+            self._update_nodes_count(self.nodes_count + number_of_containers)
+        self._update_state(final_state)
+
+    def redeploy_containers(self, number_of_containers):
+        self.deploy_from_workload(number_of_containers, final_state=State.DEPLOYING, redeploy=True)
 
         number_deployed_containers = len(self.nodes) - self.nodes_count
         number_failed_containers = number_of_containers - number_deployed_containers
@@ -299,6 +321,11 @@ class JukeboxDeployment(Base):
     @lock_deployment
     def _update_nodes(self, new_nodes):
         self.nodes = new_nodes
+        self.save()
+
+    @lock_deployment
+    def _update_nodes_count(self, new_count):
+        self.nodes_count = new_count
         self.save()
 
     @lock_deployment
