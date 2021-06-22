@@ -88,6 +88,7 @@ class JukeboxDeployment(Base):
 
         # TODO add in QR code with payment total for users
         self.pool_ids.append(payment_detail.reservation_id)
+        self.save()
         return payment_detail.reservation_id
 
     def extend_capacity_pool(self, pool_id, wallet, cu=100, su=100, ipv4us=0):
