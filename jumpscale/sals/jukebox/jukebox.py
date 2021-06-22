@@ -56,6 +56,7 @@ class JukeboxDeployment(Base):
         return self._zos
 
     def lock_deployment(function):
+        # NOTE: Please use it carefully.
         def wrapper(self, *args, **kwargs):
             self.__lock.acquire()
             try:
@@ -100,12 +101,6 @@ class JukeboxDeployment(Base):
 
     def get_container_ip(self, network_name, node, excluded_ips=None):
         excluded_ips = excluded_ips or []
-        excluded_nodes = j.core.db.get("excluded_nodes")
-        if not excluded_nodes:
-            excluded_nodes = []
-        else:
-            excluded_nodes = j.data.serializers.json.loads(excluded_nodes.decode())
-
         try:
             network_view = deployer.get_network_view(network_name, identity_name=self.identity_name)
             network_view_copy = network_view.copy()
@@ -125,9 +120,7 @@ class JukeboxDeployment(Base):
                         raise DeploymentFailed(f"Failed to add node {node.node_id} to network {wid}", wid=wid)
         except Exception as e:
             j.logger.exception(f"Failed to deploy network on {node.node_id}", exception=e)
-            excluded_nodes = set(excluded_nodes)
-            excluded_nodes.add(node.node_id)
-            j.core.db.set("excluded_nodes", j.data.serializers.json.dumps(list(excluded_nodes)), ex=3 * 60 * 60)
+            j.sals.reservation_chatflow.reservation_chatflow.block_node(node.node_id)
             return
 
         network_view_copy = network_view_copy.copy()
@@ -182,11 +175,7 @@ class JukeboxDeployment(Base):
         secret_env = secret_env or {}
         used_ip_addresses = defaultdict(lambda: [])  # {node_id:[ip_addresses]}
         # TODO when using multiple farms use GlobalScheduler instead and pass farm_name when deploying
-        excluded_nodes = j.core.db.get("excluded_nodes")
-        if not j.core.db.get("excluded_nodes"):
-            excluded_nodes = []
-        else:
-            excluded_nodes = j.data.serializers.json.loads(excluded_nodes.decode())
+        excluded_nodes = j.sals.reservation_chatflow.reservation_chatflow.list_blocked_nodes().keys()
         scheduler = Scheduler(farm_name=self.farm_name)
         scheduler.exclude_nodes(*excluded_nodes)
         deployment_threads = []
