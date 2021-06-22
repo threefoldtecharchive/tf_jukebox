@@ -280,11 +280,14 @@ module.exports = {
           this.loading = false;
         });
     },
-    itemRowBackground: function (item) {
-     return item.state == "DELETED" ? 'deleted-node' : ''
-  },
-  openExtendChatflow(deploymentName) {
-      let queryparams = { deployment_name: deploymentName, solution_type: this.type };
+    itemRowBackground(item) {
+      return item.state == "DELETED" ? "deleted-node" : "";
+    },
+    openExtendChatflow(deploymentName) {
+      let queryparams = {
+        deployment_name: deploymentName,
+        solution_type: this.type,
+      };
       this.$router.push({
         name: "SolutionChatflow",
         params: { topic: "extend", queryparams: queryparams },
@@ -312,6 +315,6 @@ a.chatflowInfo {
   display: inline-block;
 }
 .deleted-node {
-  color: rgb(150,0,0, .7)
+  color: rgb(150, 0, 0, 0.7);
 }
 </style>
