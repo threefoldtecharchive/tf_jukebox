@@ -6,7 +6,8 @@
     :loading="loading"
   >
     <template #default v-if="wid != null">
-      Are you sure you want to cancel {{wid}} from your deployment {{ deploymentname }}?
+      Are you sure you want to cancel {{ wid }} from your deployment
+      {{ deploymentname }}?
     </template>
     <template #default v-else>
       Are you sure you want to cancel {{ deploymentname }}?
@@ -22,19 +23,17 @@
 module.exports = {
   mixins: [dialog],
   props: {
-    deploymentname:String,
-    wid:{type:Number,default:null},
-    solutiontype:String
+    deploymentname: String,
+    wid: { type: Number, default: null },
+    solutiontype: String,
   },
   methods: {
     submit() {
       this.loading = true;
       this.error = null;
-      if(this.wid == null){
+      if (this.wid == null) {
         this.$api.solutions
-          .cancelDeployment(
-            this.deploymentname,this.solutiontype
-          )
+          .cancelDeployment(this.deploymentname, this.solutiontype)
           .then((response) => {
             console.log("cancelled");
             // this.$router.go(0);
@@ -44,12 +43,9 @@ module.exports = {
             console.log("failed");
             this.close();
           });
-      }
-      else{
+      } else {
         this.$api.solutions
-          .cancelNode(
-            this.deploymentname,this.wid,this.solutiontype
-          )
+          .cancelNode(this.deploymentname, this.wid, this.solutiontype)
           .then((response) => {
             console.log("cancelled");
             // this.$router.go(0);
@@ -59,7 +55,6 @@ module.exports = {
             console.log("failed");
             this.close();
           });
-
       }
     },
   },
