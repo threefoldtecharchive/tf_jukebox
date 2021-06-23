@@ -72,6 +72,19 @@ const apiClient = {
         }
       })
     },
+    extendDeployment: (name, solutionType) => {
+      return axios({
+        url: `${baseURL}/deployments/extend/`,
+        method: "post",
+        data: {
+          name: name,
+          solution_type: solutionType
+        },
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+    },
 
   },
   wallet: {

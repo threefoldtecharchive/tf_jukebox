@@ -1,14 +1,19 @@
-import datetime
-import requests
-import nacl
 import base64
+import datetime
 import json
 
-from bottle import Bottle, request, abort, HTTPResponse, redirect
-
-from jumpscale.loader import j
+from bottle import Bottle, HTTPResponse, abort, redirect, request
 from jumpscale.core.base import StoredFactory
-from jumpscale.packages.auth.bottle.auth import authenticated, get_user_info, login_required, package_authorized
+from jumpscale.loader import j
+from jumpscale.packages.auth.bottle.auth import (
+    authenticated,
+    get_user_info,
+    login_required,
+    package_authorized,
+)
+from jumpscale.sals.zos.billing import InsufficientFunds
+import nacl
+import requests
 
 from jumpscale.packages.jukebox.bottle.models import UserEntry
 from jumpscale.sals.jukebox import utils
@@ -208,6 +213,35 @@ def switch_auto_extend() -> str:
     )
     deployment.auto_extend = new_state
     deployment.save()
+
+
+@app.route("/api/deployments/extend", method="POST")
+@package_authorized("jukebox")
+def extend_deployment() -> str:
+    user_info = j.data.serializers.json.loads(get_user_info())
+    tname = user_info["username"]
+    prefixed_tname = f"{IDENTITY_PREFIX}_{tname.replace('.3bot', '')}"
+
+    data = j.data.serializers.json.loads(request.body.read())
+    deployment_name = data.get("name")
+    solution_type = data.get("solution_type", "").lower()
+
+    deployment = j.sals.jukebox.find(
+        identity_name=prefixed_tname, deployment_name=deployment_name, solution_type=solution_type
+    )
+    try:
+        deployment.extend()
+    except InsufficientFunds as e:
+        j.logger.exception("Failed to extend deployment due to insufficient funds in the wallet", exception=e)
+        return HTTPResponse(
+            "Failed to extend deployment due to insufficient funds in the wallet. To fund it, click on FUND WALLET",
+            status=500,
+            headers={"Content-Type": "application/json"},
+        )
+
+    except Exception as e:
+        j.logger.exception("Failed to extend deployment", exception=e)
+        return HTTPResponse("Failed to extend deployment", status=500, headers={"Content-Type": "application/json"})
 
 
 @app.route("/api/wallet", method="GET")
