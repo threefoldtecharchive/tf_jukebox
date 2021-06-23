@@ -58,6 +58,10 @@
                 </div>
                 </td>
             </tr>
+            <tr v-if="!loading && wallet.amount > 0">
+                <td>Funding Details</td>
+                <td v-html="wallet.detailsformatted"></td>
+            </tr>
             </tbody>
         </template>
         </v-simple-table>
@@ -85,6 +89,18 @@ module.exports = {
         .getTopupInfo()
         .then((response) => {
             this.wallet = response.data.data;
+            let detailsText = "";
+            // Formatting funding details string
+            for(var solutionType in this.wallet.details){
+              var solutionTypeDetails = this.wallet.details[solutionType];
+              detailsText += "<br> <strong>" + solutionType + "</strong> <br>"
+              for(var deploymentName in solutionTypeDetails){
+                var price = solutionTypeDetails[deploymentName];
+                detailsText += "- " + deploymentName + ": " + price + " " + this.wallet.balance.asset +"<br>";
+
+              }
+            }
+            this.wallet["detailsformatted"] = detailsText;
         })
         .finally(() => {
           this.loading = false;

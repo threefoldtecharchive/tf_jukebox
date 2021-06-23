@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from jumpscale.clients.stellar import TRANSACTION_FEES
 from jumpscale.clients.explorer.models import DiskType, Container
 from jumpscale.loader import j
@@ -90,8 +92,9 @@ def calculate_funding_amount(identity_name):
     identity = j.core.identity.find(identity_name)
     zos = j.sals.zos.get(identity_name)
     if not identity:
-        return 0
+        return 0, None
     total_price = 0
+    details = defaultdict(lambda: {})
     deployments = j.sals.jukebox.list(identity_name=identity_name)
     for deployment in deployments:
         price = 0
@@ -115,7 +118,8 @@ def calculate_funding_amount(identity_name):
         )
         price += TRANSACTION_FEES
         total_price += price
-    return total_price
+        details[deployment.solution_type.capitalize()][deployment.deployment_name] = price
+    return total_price, details
 
 
 def get_wallet_funding_info(identity_name):
@@ -125,7 +129,8 @@ def get_wallet_funding_info(identity_name):
 
     asset = "TFT"
     current_balance = wallet.get_balance_by_asset(asset)
-    amount = calculate_funding_amount(identity_name) - current_balance
+    calculated_funding_amount, amount_detials = calculate_funding_amount(identity_name)
+    amount = calculated_funding_amount - current_balance
     amount = 0 if amount < 0 else round(amount, 6)
 
     qrcode_data = f"TFT:{wallet.address}?amount={amount}&message=topup&sender=me"
@@ -135,6 +140,7 @@ def get_wallet_funding_info(identity_name):
         "address": wallet.address,
         "balance": {"amount": current_balance, "asset": asset},
         "amount": amount,
+        "details": amount_detials,
         "qrcode": qrcode_image,
         "network": wallet.network.value,
     }

@@ -123,7 +123,7 @@
                 <v-tooltip top v-if="item.poolExpire && item.autoextend">
                   <template v-slot:activator="{ on, attrs }">
                     <v-btn icon @click.stop="extendDeployment(item.name)">
-                      <v-icon v-bind="attrs" v-on="on" color="#810000"
+                      <v-icon v-bind="attrs" v-on="on" color="warning"
                         >mdi-alert-circle-outline</v-icon
                       >
                     </v-btn>
