@@ -10,7 +10,9 @@
     </template>
     <template #actions>
       <v-btn text @click="close">Close</v-btn>
-      <v-btn :disabled="error" text color="error" @click="submit">Confirm</v-btn>
+      <v-btn :disabled="error" text color="error" @click="submit"
+        >Confirm</v-btn
+      >
     </template>
   </base-dialog>
 </template>
@@ -33,8 +35,8 @@ module.exports = {
           this.done("Deployment extended");
         })
         .catch((err) => {
-            this.loading = false;
-            this.error = err.response.data;
+          this.loading = false;
+          this.error = err.response.data;
         });
     },
   },

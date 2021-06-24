@@ -57,7 +57,7 @@ class MonitorDeployments(BackgroundService):
 
         pool = zos.pools.get(pool_id)
         expiration = pool.empty_at
-        if expiration > j.data.time.utcnow().timestamp + 60 * 60 * 24 * 2:
+        if expiration > j.data.time.utcnow().timestamp + 60 * 60 * 24 * 2.5:
             return
 
         if not auto_extend:
@@ -73,9 +73,6 @@ class MonitorDeployments(BackgroundService):
             self._send_email(identity_name, subject, message)
             return
 
-        needed_cu = pool.active_cu * 60 * 60 * 24 * 14
-        needed_su = pool.active_su * 60 * 60 * 24 * 14
-        pool_info = zos.pools.extend(pool_id, cu=needed_cu, su=needed_su, ipv4us=0)
         wallet = j.clients.stellar.find(identity_name)
         if not wallet:
             error_msg = f"Failed to get user {identity_name} wallet"
@@ -91,12 +88,11 @@ class MonitorDeployments(BackgroundService):
             self._send_email(identity_name, subject, message)
             return
         try:
-            zos.billing.payout_farmers(wallet, pool_info)
+            deployment.extend()
             subject = "Jukebox Auto Extend Pools"
             message = f"Dear {user},\n\nYour pool with ID {pool_id} of {deployment_type} for deployment {deployment_name} has been extended successfully."
             self._send_email(identity_name, subject, message)
         except InsufficientFunds:
-            j.logger.error(f"Failed to pay for pool {pool_info.reservation_id}")
             subject = "Jukebox Auto Extend Pools Failed"
             message = (
                 f"Dear {user},\n\n"

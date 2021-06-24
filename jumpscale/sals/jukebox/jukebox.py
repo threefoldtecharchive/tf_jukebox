@@ -349,13 +349,13 @@ class JukeboxDeployment(Base):
                 node.state = State.ERROR
         self.save()
 
-    def extend(self):
+    def extend(self, duration=60 * 60 * 24 * 30):
         wallet = j.clients.stellar.get(self.identity_name)
         cloud_units = utils.calculate_required_units(
             cpu=self.cpu,
             memory=self.memory,
             disk_size=self.disk_size,
-            duration_seconds=60 * 60 * 24 * 30,
+            duration_seconds=duration,
             number_of_containers=self.nodes_count,
         )
         self.extend_capacity_pool(pool_id=self.pool_ids[0], wallet=wallet, cu=cloud_units["cu"], su=cloud_units["su"])

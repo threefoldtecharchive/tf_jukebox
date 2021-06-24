@@ -159,7 +159,7 @@ module.exports = {
 
   components: {
     "cancel-deployment": httpVueLoader("./Delete.vue"),
-    "extend-deployment": httpVueLoader("./Extend.vue")
+    "extend-deployment": httpVueLoader("./Extend.vue"),
   },
   data() {
     return {
@@ -310,7 +310,7 @@ module.exports = {
       });
     },
     extendDeployment(name) {
-      this.selected = name
+      this.selected = name;
       this.dialogs.extendDeployment = true;
     },
   },
