@@ -31,6 +31,7 @@ class new_jukebox_context(ContextDecorator):
 class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
     ENTRY_POINT = ""
     DISK_TYPE = DiskType.SSD
+    
     title = "Blockchain"
     steps = [
         "get_deployment_name",
@@ -45,6 +46,8 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
     QUERY = {"cru": 1, "sru": 1, "mru": 1}
 
     def _init(self):
+        self.env = {}
+        self.secret_env = {}
         self.user_info_data = self.user_info()
         # Setup identity and owner
         self.username = self.user_info_data["username"]
