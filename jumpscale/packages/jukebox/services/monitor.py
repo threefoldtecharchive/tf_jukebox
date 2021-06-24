@@ -67,7 +67,7 @@ class MonitorDeployments(BackgroundService):
             subject = "Jukebox Deployment Expiry"
             message = (
                 f"Dear {user},\n\n"
-                f"Your pool with ID {pool_id} of {deployment_type} for deployment {deployment_name} is about to expire"
+                f"Your deployment {deployment_name} is about to expire"
                 "please enable the auto extend option for this deployment and fund the wallet if needed"
             )
             self._send_email(identity_name, subject, message)
@@ -78,10 +78,10 @@ class MonitorDeployments(BackgroundService):
             error_msg = f"Failed to get user {identity_name} wallet"
             j.logger.critical(error_msg)
             alert = j.tools.alerthandler.alert_raise(app_name="jukebox", message=error_msg, alert_type="exception")
-            subject = "Jukebox Auto Extend Pools Failed"
+            subject = "Jukebox Auto Extend Deployment Failed"
             message = (
                 f"Dear {user},\n\n"
-                f"Your pool with ID {pool_id} of {deployment_type} for deployment {deployment_name} is about to expire and we are not "
+                f"Your deployment {deployment_name} is about to expire and we are not "
                 "able to extend it automatically, "
                 f"please contact our support team with alert ID {alert.id}"
             )
@@ -89,14 +89,14 @@ class MonitorDeployments(BackgroundService):
             return
         try:
             deployment.extend()
-            subject = "Jukebox Auto Extend Pools"
-            message = f"Dear {user},\n\nYour pool with ID {pool_id} of {deployment_type} for deployment {deployment_name} has been extended successfully."
+            subject = "Jukebox Auto Extend Deployment"
+            message = f"Dear {user},\n\nYour deployment {deployment_name} has been extended successfully."
             self._send_email(identity_name, subject, message)
         except InsufficientFunds:
-            subject = "Jukebox Auto Extend Pools Failed"
+            subject = "Jukebox Auto Extend Deployment Failed"
             message = (
                 f"Dear {user},\n\n"
-                f"Your pool with ID {pool_id} of {deployment_type} for deployment {deployment_name} is about to expire and we are not "
+                f"Your deployment {deployment_name} is about to expire and we are not "
                 "able to extend it automatically, "
                 "please check the fund in your wallets and extend it manually "
                 "or contact our support team."

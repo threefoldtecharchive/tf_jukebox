@@ -173,7 +173,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
 
         with new_jukebox_context(deployment.instance_name):
             # create pool
-            self.md_show_update("Creating pool...")
+            self.md_show_update("Initializing the deployment...")
             # Calculate required units from query
             cloud_units = utils.calculate_required_units(
                 cpu=self.QUERY["cru"],
@@ -217,7 +217,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
     @chatflow_step(title="Success", disable_previous=True, final_step=True)
     def success(self):
         message = f"""\
-        # You deployed {self.nodes_count} nodes of {self.SOLUTION_TYPE}
+        # You have deployed {self.nodes_count} nodes of {self.SOLUTION_TYPE}
         <br />\n
         """
         self.md_show(dedent(message), md=True)

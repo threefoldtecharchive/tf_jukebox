@@ -46,8 +46,8 @@ class JukeboxDeployment(Base):
     disk_size = fields.Integer()  # per node
     disk_type = fields.Enum(DiskType)  # per node
     secret_env = fields.String()
-    __lock = BoundedSemaphore(1)
     _zos = None
+    __lock = BoundedSemaphore(1)
 
     @property
     def zos(self):
@@ -70,8 +70,11 @@ class JukeboxDeployment(Base):
 
         return wrapper
 
+    def _format_log(self, msg):
+        return f"Owner: {self.identity_name}, Solution_type: {self.solution_type}, Deployment_name: {self.deployment_name} {msg}"
+
     def wait_pool_payment(self, reservation_id, exp=5):
-        j.logger.info(f"waiting pool payment for reservation_id: {reservation_id}")
+        j.logger.info(self._format_log(f"Waiting pool payment for reservation_id: {reservation_id}"))
         expiration = j.data.time.now().timestamp + exp * 60
         while j.data.time.get().timestamp < expiration:
             payment_info = self.zos.pools.get_payment_info(reservation_id)
@@ -81,25 +84,33 @@ class JukeboxDeployment(Base):
         return False
 
     def create_capacity_pool(self, wallet, cu=100, su=100, ipv4us=0, farm="freefarm"):
+        j.logger.info(self._format_log(f"Creating a pool with {cu} cus, {su} sus and {ipv4us} ipv4us on farm {farm}"))
         payment_detail = self.zos.pools.create(cu=cu, su=su, ipv4us=ipv4us, farm=farm)
-        # wallet = j.clients.stellar.get(wallet)
         self.zos.billing.payout_farmers(wallet, payment_detail)
         if not self.wait_pool_payment(payment_detail.reservation_id):
             raise DeploymentFailed(f"Failed to pay to pool {payment_detail.reservation_id}")
 
         # TODO add in QR code with payment total for users
+        j.logger.info(self._format_log(f"Pool {payment_detail.reservation_id} has been created successfully"))
         self.pool_ids.append(payment_detail.reservation_id)
         self.save()
         return payment_detail.reservation_id
 
     def extend_capacity_pool(self, pool_id, wallet, cu=100, su=100, ipv4us=0):
+        j.logger.info(self._format_log(f"Extending pool {pool_id} with {cu} cus, {su} sus and {ipv4us} ipv4us"))
         payment_detail = self.zos.pools.extend(pool_id=pool_id, cu=cu, su=su, ipv4us=ipv4us)
         self.zos.billing.payout_farmers(wallet, payment_detail)
         if not self.wait_pool_payment(payment_detail.reservation_id):
             raise DeploymentFailed(f"Failed to pay to pool {payment_detail.reservation_id}")
+        j.logger.info(
+            self._format_log(
+                f"Extending pool {pool_id} with {cu} cus, {su} sus and {ipv4us} ipv4us with reservation id {payment_detail.reservation_id}"
+            )
+        )
         return payment_detail.reservation_id
 
     def get_container_ip(self, network_name, node, excluded_ips=None):
+        j.logger.info(self._format_log(f"Add network {network_name} to node {node.node_id}"))
         excluded_ips = excluded_ips or []
         try:
             network_view = deployer.get_network_view(network_name, identity_name=self.identity_name)
@@ -119,7 +130,7 @@ class JukeboxDeployment(Base):
                     if not success:
                         raise DeploymentFailed(f"Failed to add node {node.node_id} to network {wid}", wid=wid)
         except Exception as e:
-            j.logger.exception(f"Failed to deploy network on {node.node_id}", exception=e)
+            j.logger.exception(self._format_log(f"Failed to deploy network on {node.node_id}"), exception=e)
             j.sals.reservation_chatflow.reservation_chatflow.block_node(node.node_id)
             return
 
@@ -130,12 +141,13 @@ class JukeboxDeployment(Base):
                 return ip
 
     def deploy_network(self, network_name, ip_range=None):
+        j.logger.info(self._format_log(f"Creating network {network_name} with ip_range {ip_range}"))
         ip_range = ip_range or utils.get_network_ip_range()
         scheduler = Scheduler(pool_id=self.pool_ids[0])
         network_success = False
         ip_version = "IPv4"
         for access_node in scheduler.nodes_by_capacity(ip_version=ip_version, accessnodes=True):
-            j.logger.info(f"Deploying network on node {access_node.node_id}")
+            j.logger.info(self._format_log(f"Deploying network {network_name} on node {access_node.node_id}"))
             network_success = True
             result = deployer.deploy_network(
                 network_name, access_node, ip_range, ip_version, self.pool_ids[0], self.identity_name
@@ -153,12 +165,16 @@ class JukeboxDeployment(Base):
                     network_success = network_success and success
                 except Exception as e:
                     network_success = False
-                    j.logger.error(f"Network workload {wid} failed on node {access_node.node_id} due to error {str(e)}")
+                    j.logger.exception(
+                        self._format_log(f"Network workload {wid} failed on node {access_node.node_id}"), exception=e
+                    )
                     break
             if network_success:
                 # store wireguard config
                 j.logger.info(
-                    f"saving wireguard config to {j.core.dirs.CFGDIR}/jukebox/wireguard/{self.identity_name}/{network_name}.conf"
+                    self._format_log(
+                        f"saving wireguard config to {j.core.dirs.CFGDIR}/jukebox/wireguard/{self.identity_name}/{network_name}.conf"
+                    )
                 )
                 wg_quick = result["wg"]
                 j.sals.fs.mkdirs(f"{j.core.dirs.CFGDIR}/jukebox/wireguard/{self.identity_name}")
@@ -170,6 +186,7 @@ class JukeboxDeployment(Base):
     def deploy_all_containers(
         self, number_of_deployments, network_name, env=None, secret_env=None, metadata=None, flist=None, entry_point="",
     ):
+        j.logger.info(self._format_log(f"Deploying {number_of_deployments} containers on farm {self.farm_name}"))
         metadata = metadata or {}
         env = env or {}
         secret_env = secret_env or {}
@@ -205,11 +222,12 @@ class JukeboxDeployment(Base):
     def deploy_container(
         self, network_name, node, ip_address, env=None, metadata=None, flist=None, entry_point="", secret_env=None,
     ):
+        j.logger.info(self._format_log(f"Deploying container with ip_address {ip_address} on network {network_name}"))
         metadata = metadata or {}
         env = env or {}
         secret_env = secret_env or {}
         if not flist:
-            raise Exception(f"Flist for {self.solution_type} not found, Please pass it")
+            raise j.exceptions.Value(f"Flist for {self.solution_type} not found, Please pass it")
 
         resv_id = deployer.deploy_container(
             identity_name=self.identity_name,
@@ -233,7 +251,7 @@ class JukeboxDeployment(Base):
         if not success:
             raise DeploymentFailed(f"Failed to deploy workload {resv_id}", wid=resv_id)
 
-        j.logger.info(f"succeeded, {resv_id}")
+        j.logger.info(self._format_log(f"Container {resv_id} has been deployed successfully"))
         workload = self.zos.workloads.get(resv_id)
         node = BlockchainNode()
         node.wid = workload.id
@@ -255,6 +273,7 @@ class JukeboxDeployment(Base):
     def delete_node(self, wid):
         for node in self.nodes:
             if node.wid == wid and node.state != State.DELETED:
+                j.logger.info(self._format_log(f"Deleting node {wid}"))
                 node.state = State.DELETED
                 self.nodes_count -= 1
                 self.save()
@@ -285,6 +304,7 @@ class JukeboxDeployment(Base):
         self._update_state(final_state)
 
     def redeploy_containers(self, number_of_containers):
+        j.logger.info(self._format_log(f"Redeploying {number_of_containers} containers"))
         self.deploy_from_workload(number_of_containers, final_state=State.DEPLOYING, redeploy=True)
 
         number_deployed_containers = len(self.nodes) - self.nodes_count
@@ -339,6 +359,7 @@ class JukeboxDeployment(Base):
         self.save()
 
     def extend(self, duration=60 * 60 * 24 * 30):
+        j.logger.info(self._format_log(f"Extending with {duration} seconds"))
         wallet = j.clients.stellar.get(self.identity_name)
         cloud_units = utils.calculate_required_units(
             cpu=self.cpu,
