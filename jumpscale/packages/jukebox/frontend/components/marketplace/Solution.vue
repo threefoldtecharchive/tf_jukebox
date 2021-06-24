@@ -120,6 +120,16 @@
                   </template>
                   <span>Auto Extend Deployment</span>
                 </v-tooltip>
+                <v-tooltip top v-if="item.poolExpire && item.autoextend">
+                  <template v-slot:activator="{ on, attrs }">
+                    <v-btn icon @click.stop="extendDeployment(item.name)">
+                      <v-icon v-bind="attrs" v-on="on" color="warning"
+                        >mdi-alert-circle-outline</v-icon
+                      >
+                    </v-btn>
+                  </template>
+                  <span>Deployment about to expire. Click to extend</span>
+                </v-tooltip>
                 <v-tooltip top v-if="item.activeworkloads !== item.total">
                   <template v-slot:activator="{ on, attrs }">
                     <v-icon v-bind="attrs" v-on="on" color="#810000"
@@ -137,6 +147,7 @@
       </template>
     </base-component>
     <cancel-deployment v-if="selected" v-model="dialogs.cancelDeployment" @done="getDeployedSolutions(type)" :deploymentname="selected" :wid="selectedWid" :solutiontype="type" ></cancel-deployment>
+    <extend-deployment v-if="selected" v-model="dialogs.extendDeployment" @done="getDeployedSolutions(type)" :deploymentname="selected" :solutiontype="type" ></extend-deployment>
   </div>
 </template>
 
@@ -148,6 +159,7 @@ module.exports = {
 
   components: {
     "cancel-deployment": httpVueLoader("./Delete.vue"),
+    "extend-deployment": httpVueLoader("./Extend.vue"),
   },
   data() {
     return {
@@ -157,6 +169,7 @@ module.exports = {
       dialogs: {
         info: false,
         cancelDeployment: false,
+        extendDeployment: false,
       },
       mainheaders: [
         { text: "Deployment Name", value: "name" },
@@ -229,6 +242,9 @@ module.exports = {
           for (let i = 0; i < this.deployedSolutions.length; i++) {
             this.deployedSolutions[i].pool =
               this.deployedSolutions[i].pool_ids[0];
+            this.deployedSolutions[i]["poolExpire"] =
+              this.deployedSolutions[i].expiration_date <
+              Date.now() / 1000 + 60 * 60 * 24 * 2;
             this.deployedSolutions[i].expiration = new Date(
               this.deployedSolutions[i].expiration_date * 1000
             ).toLocaleString("en-GB");
@@ -292,6 +308,10 @@ module.exports = {
         name: "SolutionChatflow",
         params: { topic: "extend", queryparams: queryparams },
       });
+    },
+    extendDeployment(name) {
+      this.selected = name;
+      this.dialogs.extendDeployment = true;
     },
   },
   mounted() {
