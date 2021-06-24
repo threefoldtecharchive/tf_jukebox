@@ -31,7 +31,7 @@ class new_jukebox_context(ContextDecorator):
 class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
     ENTRY_POINT = ""
     DISK_TYPE = DiskType.SSD
-    
+
     title = "Blockchain"
     steps = [
         "get_deployment_name",
@@ -109,6 +109,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
 
     @chatflow_step(title="Choose farm")
     def choose_farm(self):
+        self.md_show_update("Getting available locations...")
         while True:
             self.no_farms = 1
             available_farms = utils.get_possible_farms(

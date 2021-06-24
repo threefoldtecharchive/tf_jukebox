@@ -85,7 +85,19 @@ const apiClient = {
         }
       })
     },
-
+    getDeploymentSecret: (name, solutionType) => {
+      return axios({
+        url: `${baseURL}/deployments/secret/`,
+        method: "post",
+        data: {
+          name: name,
+          solution_type: solutionType
+        },
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+    },
   },
   wallet: {
     getTopupInfo: () => {
