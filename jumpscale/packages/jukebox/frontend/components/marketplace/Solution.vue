@@ -70,7 +70,9 @@
 
                     >
                       <template slot="no-data">No workloads available</p></template>
-
+                      <template v-slot:item.ipv6="{ item }">
+                        <a :href="`http://[${item.ipv6}]`" target="_blank">{{item.ipv6}}</a>
+                      </template>
                       <template v-slot:item.actions="{ item }">
                         <v-tooltip top v-if="item.state != 'DELETED'">
                           <template v-slot:activator="{ on, attrs }">
