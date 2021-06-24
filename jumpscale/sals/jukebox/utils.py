@@ -65,10 +65,7 @@ def calculate_required_units(cpu, memory, disk_size, duration_seconds, number_of
 def get_possible_farms(cru, sru, mru, number_of_deployments):
     gcc = GlobalCapacityChecker()
     farm_names = gcc.get_available_farms(
-        cru=cru * number_of_deployments,
-        mru=mru * number_of_deployments,
-        sru=sru * number_of_deployments,
-        accessnodes=True,
+        cru=cru, mru=mru, sru=sru, accessnodes=True, no_deployments=number_of_deployments
     )
     return farm_names
 
