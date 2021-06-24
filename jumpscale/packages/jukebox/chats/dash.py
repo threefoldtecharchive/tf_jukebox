@@ -1,13 +1,15 @@
 from jumpscale.loader import j
+from textwrap import dedent
 from jumpscale.sals.chatflows.chatflows import chatflow_step
 from jumpscale.sals.jukebox.jukebox_deploy_chatflow import JukeboxDeployChatflow
-from textwrap import dedent
 
-class PresearchDeploy(JukeboxDeployChatflow):
-    title = "Presearch"
-    SOLUTION_TYPE = "presearch"
-    FLIST = "https://hub.grid.tf/ashraf.3bot/arrajput-presearch-flist-1.0.flist"
-    ENTERY_POINT = "/start_presearch.sh"
+
+class DashDeploy(JukeboxDeployChatflow):
+    title = "Dash"
+    SOLUTION_TYPE = "dash"
+    QUERY = {"cru": 1, "sru": 1, "mru": 1}
+    ENTERY_POINT = "/start_dash.sh"
+    FLIST = "https://hub.grid.tf/ashraf.3bot/arrajput-dash-flist-1.0.flist"
     steps = [
         "get_deployment_name",
         "block_chain_info",
@@ -18,15 +20,12 @@ class PresearchDeploy(JukeboxDeployChatflow):
         "deploy",
         "success",
     ]
-    QUERY = {"cru": 1, "sru": 1, "mru": 1}
 
     @chatflow_step(title="User configurations")
     def environment(self):
-        self.registration_code = self.string_ask(
-            "Please enter the registration code",
-            required=True,
-        )
-        self.secret_env = {"registration_code": self.registration_code}
+        self.env = {}
+        self.rpc_password = j.data.idgenerator.idgenerator.chars(8)
+        self.secret_env = {"rpcuser": self.owner_tname, "rpcpasswd": self.rpc_password}
         self.metadata = {
             "form_info": {
                 "chatflow": self.SOLUTION_TYPE,
@@ -39,7 +38,12 @@ class PresearchDeploy(JukeboxDeployChatflow):
     def success(self):
         message = f"""\
         # You deployed {self.nodes_count} nodes of {self.SOLUTION_TYPE}
+        <br />\n
+        your RPC credentials: <br />
+        username: {self.owner_tname}<br />
+        password: {self.rpc_password}<br />
         """
         self.md_show(dedent(message), md=True)
 
-chat = PresearchDeploy
+
+chat = DashDeploy
