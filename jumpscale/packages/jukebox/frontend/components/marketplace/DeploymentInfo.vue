@@ -9,6 +9,7 @@
           :ignored="KeysIgnored"
           :typelist="KeysWithTypeList"
           :typedict="KeysWithTypeDict"
+          :secrets="secrets"
         ></json-renderer>
       </template>
       <template #actions>
@@ -38,6 +39,7 @@ module.exports = {
         "farm",
         "total",
       ],
+      secrets: { secret_env: false },
     };
   },
   methods: {

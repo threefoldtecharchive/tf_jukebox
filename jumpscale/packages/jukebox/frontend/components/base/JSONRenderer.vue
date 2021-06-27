@@ -11,20 +11,88 @@
           <tr v-for="(item, key) in jsonobj" :key="key">
             <th v-if="!ignored.includes(key) && item !== ''">{{ key }}</th>
             <td v-if="typelist.includes(key)" class="pt-2">
-              <v-chip class="ma-1" v-for="node in item" :key="node">{{
-                node
-              }}</v-chip>
+              <v-text-field
+                v-if="Object.keys(secrets).includes(key)"
+                hide-details
+                readonly
+                solo
+                flat
+                :append-icon="secrets[key] ? 'mdi-eye' : 'mdi-eye-off'"
+                @click:append="secrets[key] = !secrets[key]"
+              >
+                <template v-slot:prepend-inner>
+                  <v-chip
+                    class="ma-1"
+                    v-bind:class="{ hide: !secrets[key] }"
+                    v-for="node in item"
+                    :key="node"
+                    >{{ node }}</v-chip
+                  >
+                </template>
+              </v-text-field>
+              <v-text-field v-else hide-details readonly solo flat>
+                <template v-slot:prepend-inner>
+                  <v-chip class="ma-1" v-for="node in item" :key="node">{{
+                    node
+                  }}</v-chip>
+                </template>
+              </v-text-field>
             </td>
             <td v-else-if="typedict.includes(key)" class="pt-2">
-              <v-chip
-                class="ma-1"
-                v-for="(subItem, subkey) in item"
-                :key="subkey"
-                >{{ subkey }} : {{ subItem }}</v-chip
+              <v-text-field
+                v-if="Object.keys(secrets).includes(key)"
+                hide-details
+                readonly
+                solo
+                flat
+                :append-icon="secrets[key] ? 'mdi-eye' : 'mdi-eye-off'"
+                @click:append="secrets[key] = !secrets[key]"
               >
+                <template v-slot:prepend-inner>
+                  <v-chip
+                    class="ma-1"
+                    v-bind:class="{ hide: !secrets[key] }"
+                    v-for="(subItem, subkey) in item"
+                    :key="subkey"
+                  >
+                    {{ subkey }}: {{ subItem }}</v-chip
+                  >
+                </template>
+              </v-text-field>
+              <v-text-field v-else hide-details readonly solo flat>
+                <template v-slot:prepend-inner>
+                  <v-chip
+                    class="ma - 1"
+                    v-for="(subItem, subkey) in item"
+                    :key="subkey"
+                  >
+                    {{ subkey }}: {{ subItem }}</v-chip
+                  >
+                </template>
+              </v-text-field>
             </td>
             <td v-else-if="!ignored.includes(key) && item !== ''">
-              {{ item }}
+              <v-text-field
+                v-if="Object.keys(secrets).includes(key)"
+                :value="item"
+                hide-details
+                readonly
+                solo
+                flat
+                :append-icon="secrets[key] ? 'mdi-eye' : 'mdi-eye-off'"
+                :type="secrets[key] ? 'text' : 'password'"
+                @click:append="secrets[key] = !secrets[key]"
+              >
+              </v-text-field>
+              <v-text-field
+                :value="item"
+                v-else
+                hide-details
+                readonly
+                solo
+                flat
+              >
+              </v-text-field>
             </td>
           </tr>
         </tbody>
@@ -66,6 +134,7 @@ module.exports = {
     ignored: { type: Array, default: () => [] },
     typelist: { type: Array, default: () => [] },
     typedict: { type: Array, default: () => [] },
+    secrets: { type: Object, default: {} },
   },
   methods: {
     copyjson() {
@@ -94,5 +163,8 @@ module.exports = {
   position: absolute;
   right: 10;
   top: 10;
+}
+.hide {
+  -webkit-text-security: disc; /* Default */
 }
 </style>
