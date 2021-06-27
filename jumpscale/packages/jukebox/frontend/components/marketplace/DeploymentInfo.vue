@@ -24,6 +24,7 @@ module.exports = {
   mixins: [dialog],
   data() {
     return {
+      lastDeploymentName: "",
       KeysWithTypeList: ["pool_ids"],
       KeysWithTypeDict: ["secret_env"],
       KeysIgnored: [
@@ -50,8 +51,8 @@ module.exports = {
           this.deployment.solution_type
         )
         .then((response) => {
-          debugger;
           this.deployment["secret_env"] = response.data.data;
+          this.lastDeploymentName = this.deployment.deployment_name;
         })
         .catch((err) => {
           this.error = err.response.data;
@@ -61,8 +62,13 @@ module.exports = {
         });
     },
   },
-  mounted() {
-    this.getDeploymentSecret();
+  updated() {
+    if (
+      this.deployment.deployment_name !== this.lastDeploymentName &&
+      !this.loading
+    ) {
+      this.getDeploymentSecret();
+    }
   },
 };
 </script>
