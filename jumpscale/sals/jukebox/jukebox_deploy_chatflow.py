@@ -100,7 +100,9 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         # num of nodes
         # node type
         form = self.new_form()
-        self.nodes_count = form.int_ask("Please enter the number of nodes you want to deploy", required=True)
+        self.nodes_count = form.int_ask(
+            "Please enter the number of nodes you want to deploy", required=True, min=1, max=50, default=1
+        )
         self.farm_selection = form.single_choice(
             "Do you want to select the farm automatically?", ["Yes", "No"], required=True, default="Yes",
         )
