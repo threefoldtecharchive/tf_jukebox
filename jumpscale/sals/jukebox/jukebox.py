@@ -218,6 +218,11 @@ class JukeboxDeployment(Base):
             # END SPAWN
         # TODO check resv ids success/failure, if resv failed retry on same node
         gevent.joinall(deployment_threads)
+        for greenlet_thread in deployment_threads:
+            if greenlet_thread.value:
+                break
+        else:
+            raise DeploymentFailed(f"Failed to deploy containers")
 
     def deploy_container(
         self, network_name, node, ip_address, env=None, metadata=None, flist=None, entry_point="", secret_env=None,
