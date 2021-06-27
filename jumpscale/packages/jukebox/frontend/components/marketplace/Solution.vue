@@ -102,6 +102,16 @@
                 </v-tooltip>
                 <v-tooltip top>
                   <template v-slot:activator="{ on, attrs }">
+                    <v-btn icon @click.stop="showInfo(item)">
+                      <v-icon v-bind="attrs" v-on="on" color="#206A5D"
+                        >mdi-information-outline</v-icon
+                      >
+                    </v-btn>
+                  </template>
+                  <span>Show Information</span>
+                </v-tooltip>
+                <v-tooltip top>
+                  <template v-slot:activator="{ on, attrs }">
                     <v-btn icon @click.stop="cancelDeployment(item.name)">
                       <v-icon v-bind="attrs" v-on="on" color="#810000"
                         >mdi-delete</v-icon
@@ -125,8 +135,8 @@
                 <v-tooltip top v-if="item.poolExpire && item.autoextend">
                   <template v-slot:activator="{ on, attrs }">
                     <v-btn icon @click.stop="extendDeployment(item.name)">
-                      <v-icon v-bind="attrs" v-on="on" color="warning"
-                        >mdi-alert-circle-outline</v-icon
+                      <v-icon v-bind="attrs" v-on="on" color="#1b4f72"
+                        >mdi-arrow-top-right-thick</v-icon
                       >
                     </v-btn>
                   </template>
@@ -150,6 +160,7 @@
     </base-component>
     <cancel-deployment v-if="selected" v-model="dialogs.cancelDeployment" @done="getDeployedSolutions(type)" :deploymentname="selected" :wid="selectedWid" :solutiontype="type" ></cancel-deployment>
     <extend-deployment v-if="selected" v-model="dialogs.extendDeployment" @done="getDeployedSolutions(type)" :deploymentname="selected" :solutiontype="type" ></extend-deployment>
+    <info-deployment v-if="selectedDeployment" v-model="dialogs.infoDeployment" :deployment="selectedDeployment"></info-deployment>
   </div>
 </template>
 
@@ -162,16 +173,19 @@ module.exports = {
   components: {
     "cancel-deployment": httpVueLoader("./Delete.vue"),
     "extend-deployment": httpVueLoader("./Extend.vue"),
+    "info-deployment": httpVueLoader("./DeploymentInfo.vue"),
   },
   data() {
     return {
       loading: true,
       selected: null,
       selectedWid: null,
+      selectedDeployment: null,
       dialogs: {
         info: false,
         cancelDeployment: false,
         extendDeployment: false,
+        infoDeployment: false,
       },
       mainheaders: [
         { text: "Deployment Name", value: "name" },
@@ -314,6 +328,10 @@ module.exports = {
     extendDeployment(name) {
       this.selected = name;
       this.dialogs.extendDeployment = true;
+    },
+    showInfo(deployment) {
+      this.selectedDeployment = deployment;
+      this.dialogs.infoDeployment = true;
     },
   },
   mounted() {

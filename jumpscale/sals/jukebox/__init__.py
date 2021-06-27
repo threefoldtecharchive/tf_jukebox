@@ -47,7 +47,7 @@ class BlockchainStoredFactory(StoredFactory):
     def delete(self, name):
         deployment = self.find(name)
         if deployment:
-            j.logger.info(f"Deleting deployment {deployment.instance_name}")
+            j.logger.info(f"Deleting deployment {deployment}")
             self.cleanup(deployment)
         return super().delete(name)
 

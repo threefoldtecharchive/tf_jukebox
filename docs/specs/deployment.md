@@ -16,6 +16,7 @@ pip3 install poetry
 - Machine with a domain
 - Stellar wallet
   - **activation_wallet**: Used to activate user wallet. (Required asset: XLMs)
+  - **init_wallet**: Used to pay for the first hour in the deployment (Required asset: TFTs)
 
 ## Setup
 
@@ -29,7 +30,7 @@ poetry install
 
 - Edit `package.toml` in tf_jukebox package with your domain and email address
 
-  ```bash
+  ```toml
   domain = "<your domain>"
   letsencryptemail = "<your email>"
   ```
@@ -43,6 +44,7 @@ poetry install
   activation_wallet.secret = <your secret>
   activation_wallet.activate_through_threefold_service()
   activation.save()
+  # init wallet can be done with the same way as the activation one.
   ```
 
 - Add billing package.

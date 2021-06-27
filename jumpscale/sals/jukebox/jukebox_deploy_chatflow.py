@@ -12,6 +12,7 @@ from jumpscale.sals.jukebox import utils
 from jumpscale.sals.jukebox.models import State
 
 IDENTITY_PREFIX = "jukebox"
+INIT_WALLET = "init_wallet"
 
 
 class new_jukebox_context(ContextDecorator):
@@ -31,7 +32,7 @@ class new_jukebox_context(ContextDecorator):
 class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
     ENTRY_POINT = ""
     DISK_TYPE = DiskType.SSD
-    
+
     title = "Blockchain"
     steps = [
         "get_deployment_name",
@@ -44,6 +45,20 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
     ]
     # FLIST = "<flist_url>" # needs to be defined in the child chatflows
     QUERY = {"cru": 1, "sru": 1, "mru": 1}
+
+    def _check_wallet(self, name, asset, limit):
+        if name in j.clients.stellar.list_all():
+            try:
+                w = j.clients.stellar.find(name)
+                if w.get_balance_by_asset(asset) < limit:
+                    raise StopChatFlow(f"{name} doesn't have enough {asset} to support the deployment.")
+            except:
+                raise StopChatFlow(f"Couldn't get the balance for {name} wallet")
+            else:
+                j.logger.info(f"{name} is funded")
+        else:
+            j.logger.info(f"This system doesn't have {name} configured")
+            raise StopChatFlow(f"{name} doesn't exist, please contact support.")
 
     def _init(self):
         self.env = {}
@@ -59,22 +74,12 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         if not j.clients.stellar.check_stellar_service():
             raise StopChatFlow("Payment service is currently down, try again later")
 
+        self._check_wallet(name=INIT_WALLET, asset="TFT", limit=50)
+
         wallet_name = f"jukebox_{self.owner_tname}"
         if not j.clients.stellar.find(wallet_name):
             # check xlms
-            wname = "activation_wallet"
-            if wname in j.clients.stellar.list_all():
-                try:
-                    w = j.clients.stellar.get(wname)
-                    if w.get_balance_by_asset("XLM") < 10:
-                        raise StopChatFlow(f"{wname} doesn't have enough XLM to support the deployment.")
-                except:
-                    raise StopChatFlow(f"Couldn't get the balance for {wname} wallet")
-                else:
-                    j.logger.info(f"{wname} is funded")
-            else:
-                j.logger.info(f"This system doesn't have {wname} configured")
-                raise StopChatFlow(f"{wname} doesn't exist, please contact support.")
+            self._check_wallet(name="activation_wallet", asset="XLM", limit=10)
 
         self.wallet = utils.get_or_create_user_wallet(wallet_name)
 
@@ -100,7 +105,9 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         # num of nodes
         # node type
         form = self.new_form()
-        self.nodes_count = form.int_ask("Please enter the number of nodes you want to deploy", required=True)
+        self.nodes_count = form.int_ask(
+            "Please enter the number of nodes you want to deploy", required=True, min=1, max=50, default=1
+        )
         self.farm_selection = form.single_choice(
             "Do you want to select the farm automatically?", ["Yes", "No"], required=True, default="Yes",
         )
@@ -109,6 +116,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
 
     @chatflow_step(title="Choose farm")
     def choose_farm(self):
+        self.md_show_update("Getting available locations...")
         while True:
             self.no_farms = 1
             available_farms = utils.get_possible_farms(
@@ -144,7 +152,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
 
         payment_success, _, self.payment_id = utils.show_payment(
             bot=self,
-            cost=calculated_cost_per_cont * self.nodes_count + TRANSACTION_FEES,
+            cost=calculated_cost_per_cont * self.nodes_count + 2 * TRANSACTION_FEES,
             wallet_name=self.wallet.instance_name,
             expiry=5,
             description=j.data.serializers.json.dumps({"type": "jukebox", "owner": self.owner_tname}),
@@ -173,51 +181,79 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
 
         with new_jukebox_context(deployment.instance_name):
             # create pool
-            self.md_show_update("Creating pool...")
-            # Calculate required units from query
-            cloud_units = utils.calculate_required_units(
+            self.md_show_update("Initializing the deployment...")
+            init_wallet = j.clients.stellar.find(INIT_WALLET)
+            # Calculate required units from query for one hour
+            one_hour_cloud_units = utils.calculate_required_units(
                 cpu=self.QUERY["cru"],
                 memory=self.QUERY["mru"] * 1024,
                 disk_size=self.QUERY["sru"] * 1024,
-                duration_seconds=self.expiration,
+                duration_seconds=60 * 60,
                 number_of_containers=self.nodes_count,
             )
 
             # TODO to be done for all farms to have a list of pool_ids, the following is per one farm
             try:
                 pool_rev_id = deployment.create_capacity_pool(
-                    self.wallet, cu=cloud_units["cu"], su=cloud_units["su"], ipv4us=0, farm=self.farm
+                    init_wallet, cu=one_hour_cloud_units["cu"], su=one_hour_cloud_units["su"], ipv4us=0, farm=self.farm
                 )
 
-                pool_ids = [pool_rev_id]
+                self.network_name = f"jukebox_{self.owner_tname}_{pool_rev_id}"
+
+                self.md_show_update("Deploying network...")
+                # Create network
+                _, self.wg_quick = deployment.deploy_network(network_name=self.network_name)
+
+                # Get possible nodes,ip_addresses then spawn deployment of container in gevent
+                self.md_show_update("Deploying containers...")
+                deployment.deploy_all_containers(
+                    number_of_deployments=self.nodes_count,
+                    network_name=self.network_name,
+                    env=self.env,
+                    metadata=self.metadata,
+                    flist=self.FLIST,
+                    entry_point=self.ENTRY_POINT,
+                    secret_env=self.secret_env,
+                )
+                deployment._update_state(State.DEPLOYED)
+
+                # Extend pool with the remain expiration
+                cloud_units = utils.calculate_required_units(
+                    cpu=self.QUERY["cru"],
+                    memory=self.QUERY["mru"] * 1024,
+                    disk_size=self.QUERY["sru"] * 1024,
+                    duration_seconds=self.expiration - 60 * 60,
+                    number_of_containers=self.nodes_count,
+                )
+                deployment.extend_capacity_pool(
+                    pool_id=deployment.pool_ids[0],
+                    wallet=self.wallet,
+                    cu=cloud_units["cu"],
+                    su=cloud_units["su"],
+                    ipv4us=0,
+                )
+
             except Exception as e:
                 j.logger.exception(f"Failed to deploy", exception=e)
                 j.sals.billing.issue_refund(self.payment_id)
                 self.stop("Failed to deploy")
 
-            self.network_name = f"jukebox_{self.owner_tname}_{pool_rev_id}"
-
-            self.md_show_update("Deploying network...")
-            # Create network
-            _, self.wg_quick = deployment.deploy_network(network_name=self.network_name)
-
-            # Get possible nodes,ip_addresses then spawn deployment of container in gevent
-            self.md_show_update("Deploying containers...")
-            deployment.deploy_all_containers(
-                number_of_deployments=self.nodes_count,
-                network_name=self.network_name,
-                env=self.env,
-                metadata=self.metadata,
-                flist=self.FLIST,
-                entry_point=self.ENTRY_POINT,
-                secret_env=self.secret_env,
+            # take back one hour payment to the init_wallet.
+            calculated_cost_per_cont = utils.calculate_payment_from_container_resources(
+                self.QUERY["cru"],
+                self.QUERY["mru"] * 1024,
+                self.QUERY["sru"] * 1024,
+                duration=60 * 60,
+                farm_name=self.farm,
             )
-            deployment._update_state(State.DEPLOYED)
+            amount_to_refund = calculated_cost_per_cont * self.nodes_count + TRANSACTION_FEES
+            asset = self.wallet._get_asset("TFT")
+            self.wallet.transfer(init_wallet.address, amount_to_refund, asset=f"{asset.code}:{asset.issuer}")
 
     @chatflow_step(title="Success", disable_previous=True, final_step=True)
     def success(self):
         message = f"""\
-        # You deployed {self.nodes_count} nodes of {self.SOLUTION_TYPE}
+        # You have deployed {self.nodes_count} nodes of {self.SOLUTION_TYPE}
         <br />\n
         """
         self.md_show(dedent(message), md=True)

@@ -115,7 +115,7 @@ def calculate_funding_amount(identity_name):
         )
         price += TRANSACTION_FEES
         total_price += price
-        details[deployment.solution_type.capitalize()][deployment.deployment_name] = price
+        details[deployment.solution_type.capitalize()][deployment.deployment_name] = round(price, 6)
     return total_price, details
 
 
@@ -142,3 +142,13 @@ def get_wallet_funding_info(identity_name):
         "network": wallet.network.value,
     }
     return data
+
+
+def decrypt_secret_env(deployment):
+    secret_env = ""
+    secret_env_json = j.sals.reservation_chatflow.deployer.decrypt_metadata(
+        deployment.secret_env, deployment.identity_name
+    )
+    if secret_env_json:
+        secret_env = j.data.serializers.json.loads(secret_env_json)
+    return secret_env

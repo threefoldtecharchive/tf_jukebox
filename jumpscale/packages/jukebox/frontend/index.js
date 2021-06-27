@@ -27,6 +27,7 @@ const baseSection = httpVueLoader('./components/base/Section.vue')
 const external = httpVueLoader('./components/base/External.vue')
 const popup = httpVueLoader('./components/base/Popup.vue')
 const code = httpVueLoader('./components/base/Code.vue')
+const JSONRender = httpVueLoader('./components/base/JSONRenderer.vue')
 
 const app = httpVueLoader('./App.vue')
 const home = httpVueLoader('./components/JukeboxHome.vue')
@@ -57,6 +58,7 @@ Vue.component("popup", popup)
 Vue.component("code-area", code)
 Vue.component("markdown-view", markdownViewer)
 Vue.component("wallet", wallet)
+Vue.component("json-renderer", JSONRender)
 
 const router = new VueRouter({
     routes: [
@@ -85,11 +87,11 @@ const router = new VueRouter({
 // })
 
 
-const getUser = async() => {
+const getUser = async () => {
     return axios.get("/auth/authenticated/").then(res => true).catch(() => false)
 }
 
-router.beforeEach(async(to, from, next) => {
+router.beforeEach(async (to, from, next) => {
     to.params.loggedin = await getUser()
     const AllowedEndPoint = "api/allowed";
     axios.get(AllowedEndPoint).then(results => {
