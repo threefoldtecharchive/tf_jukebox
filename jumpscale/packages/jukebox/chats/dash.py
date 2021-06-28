@@ -27,11 +27,7 @@ class DashDeploy(JukeboxDeployChatflow):
         self.rpc_password = j.data.idgenerator.idgenerator.chars(8)
         self.secret_env = {"rpcuser": self.owner_tname, "rpcpasswd": self.rpc_password}
         self.metadata = {
-            "form_info": {
-                "chatflow": self.SOLUTION_TYPE,
-                "Solution name": self.deployment_name,
-                "number_of_nodes": self.nodes_count,
-            },
+            "form_info": {"chatflow": self.SOLUTION_TYPE, "Solution name": self.deployment_name,},
         }
 
     @chatflow_step(title="Success", disable_previous=True, final_step=True)
