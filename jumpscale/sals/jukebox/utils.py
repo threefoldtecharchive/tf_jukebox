@@ -32,7 +32,7 @@ def get_or_create_user_wallet(wallet_name):
 
 
 def calculate_payment_from_container_resources(
-    cpu, memory, disk_size, duration, farm_id=None, farm_name="freefarm", disk_type=DiskType.SSD
+    cpu, memory, disk_size, duration, farm_id=None, farm_name="freefarm", disk_type=DiskType.HDD
 ):
     if farm_name and not farm_id:
         zos = j.sals.zos.get()
@@ -51,7 +51,7 @@ def calculate_required_units(cpu, memory, disk_size, duration_seconds, number_of
     cont.capacity.cpu = cpu
     cont.capacity.memory = memory
     cont.capacity.disk_size = disk_size
-    cont.capacity.disk_type = DiskType.SSD
+    cont.capacity.disk_type = DiskType.HDD
 
     cloud_units = {"cu": 0, "su": 0, "ipv4u": 0}
     cont_units = cont.resource_units().cloud_units()
@@ -62,10 +62,10 @@ def calculate_required_units(cpu, memory, disk_size, duration_seconds, number_of
     return cloud_units
 
 
-def get_possible_farms(cru, sru, mru, number_of_deployments):
+def get_possible_farms(cru, hru, mru, number_of_deployments):
     gcc = GlobalCapacityChecker()
     farm_names = gcc.get_available_farms(
-        cru=cru, mru=mru, sru=sru, accessnodes=True, no_deployments=number_of_deployments
+        cru=cru, mru=mru, hru=hru, accessnodes=True, no_deployments=number_of_deployments
     )
     return farm_names
 

@@ -9,9 +9,9 @@ from jumpscale.sals.jukebox.jukebox_deploy_chatflow import JukeboxDeployChatflow
 class CasperDeploy(JukeboxDeployChatflow):
     title = "CasperLabs"
     SOLUTION_TYPE = "casperlabs"
-    QUERY = {"cru": 1, "sru": 1, "mru": 1}
+    QUERY = {"cru": 4, "mru": 16, "hru": 1024}
     ENTERY_POINT = "/start_casper"
-    FLIST = "https://hub.grid.tf/arehman/arrajput-casper-flist-1.0.flist"
+    FLIST = "https://hub.grid.tf/ahmed_hanafy_1/arrajput-casper-flist-1.0.flist"
     steps = [
         "get_deployment_name",
         "block_chain_info",

@@ -199,7 +199,7 @@ class JukeboxDeployment(Base):
         i = 0
         while i < number_of_deployments:
             # for each node check how many containers can be deployed on it, and based on that assign that node for X deployments
-            node = next(scheduler.nodes_by_capacity(cru=self.cpu, sru=self.disk_size / 1024, mru=self.memory / 1024))
+            node = next(scheduler.nodes_by_capacity(cru=self.cpu, hru=self.disk_size / 1024, mru=self.memory / 1024))
 
             excluded_ips = used_ip_addresses.get(node.node_id, [])
             ip_address = self.get_container_ip(network_name, node, excluded_ips)
@@ -244,6 +244,7 @@ class JukeboxDeployment(Base):
             cpu=self.cpu,
             memory=self.memory,
             disk_size=self.disk_size,
+            disk_type=self.disk_type,
             env=env,
             interactive=False,
             entrypoint=entry_point,

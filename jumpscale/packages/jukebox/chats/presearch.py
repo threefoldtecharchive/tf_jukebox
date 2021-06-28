@@ -19,7 +19,7 @@ class PresearchDeploy(JukeboxDeployChatflow):
         "deploy",
         "success",
     ]
-    QUERY = {"cru": 1, "sru": 1, "mru": 1}
+    QUERY = {"cru": 1, "mru": 1, "hru": 3}
 
     @chatflow_step(title="User configurations")
     def environment(self):

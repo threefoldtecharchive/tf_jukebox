@@ -7,7 +7,7 @@ from jumpscale.sals.jukebox.jukebox_deploy_chatflow import JukeboxDeployChatflow
 class DigibyteDeploy(JukeboxDeployChatflow):
     title = "Digibyte"
     SOLUTION_TYPE = "digibyte"
-    QUERY = {"cru": 1, "sru": 1, "mru": 1}
+    QUERY = {"cru": 4, "mru": 12, "hru": 100}
     ENTERY_POINT = "/start_dgb.sh"
     FLIST = "https://hub.grid.tf/ashraf.3bot/arrajput-digibyte-flist-1.0.flist"
     steps = [

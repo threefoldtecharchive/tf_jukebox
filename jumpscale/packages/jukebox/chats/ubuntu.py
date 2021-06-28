@@ -20,7 +20,7 @@ class UbuntuDeploy(JukeboxDeployChatflow):
         "deploy",
         "success",
     ]
-    QUERY = {"cru": 1, "sru": 1, "mru": 1}
+    QUERY = {"cru": 1, "hru": 1, "mru": 1}
 
     @chatflow_step(title="User configurations")
     def environment(self):

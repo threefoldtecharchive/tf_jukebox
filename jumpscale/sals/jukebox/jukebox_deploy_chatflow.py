@@ -31,7 +31,7 @@ class new_jukebox_context(ContextDecorator):
 
 class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
     ENTRY_POINT = ""
-    DISK_TYPE = DiskType.SSD
+    DISK_TYPE = DiskType.HDD
 
     title = "Blockchain"
     steps = [
@@ -44,7 +44,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         "success",
     ]
     # FLIST = "<flist_url>" # needs to be defined in the child chatflows
-    QUERY = {"cru": 1, "sru": 1, "mru": 1}
+    QUERY = {"cru": 1, "mru": 1, "hru": 1}
 
     def _check_wallet(self, name, asset, limit):
         if name in j.clients.stellar.list_all():
@@ -120,7 +120,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         while True:
             self.no_farms = 1
             available_farms = utils.get_possible_farms(
-                self.QUERY["cru"], self.QUERY["sru"], self.QUERY["mru"], self.nodes_count
+                self.QUERY["cru"], self.QUERY["hru"], self.QUERY["mru"], self.nodes_count
             )
             available_farms = list(available_farms)
             if len(available_farms) < self.no_farms:
@@ -145,7 +145,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         calculated_cost_per_cont = utils.calculate_payment_from_container_resources(
             self.QUERY["cru"],
             self.QUERY["mru"] * 1024,
-            self.QUERY["sru"] * 1024,
+            self.QUERY["hru"] * 1024,
             duration=self.expiration,
             farm_name=self.farm,
         )
@@ -170,7 +170,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
         )
         deployment.cpu = self.QUERY["cru"]
         deployment.memory = self.QUERY["mru"] * 1024
-        deployment.disk_size = self.QUERY["sru"] * 1024
+        deployment.disk_size = self.QUERY["hru"] * 1024
         deployment.disk_type = self.DISK_TYPE
         deployment.expiration_date = self.expiration + j.data.time.utcnow().timestamp
         deployment.farm_name = self.farm
@@ -187,7 +187,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
             one_hour_cloud_units = utils.calculate_required_units(
                 cpu=self.QUERY["cru"],
                 memory=self.QUERY["mru"] * 1024,
-                disk_size=self.QUERY["sru"] * 1024,
+                disk_size=self.QUERY["hru"] * 1024,
                 duration_seconds=60 * 60,
                 number_of_containers=self.nodes_count,
             )
@@ -221,7 +221,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
                 cloud_units = utils.calculate_required_units(
                     cpu=self.QUERY["cru"],
                     memory=self.QUERY["mru"] * 1024,
-                    disk_size=self.QUERY["sru"] * 1024,
+                    disk_size=self.QUERY["hru"] * 1024,
                     duration_seconds=self.expiration - 60 * 60,
                     number_of_containers=self.nodes_count,
                 )
@@ -242,11 +242,11 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
             calculated_cost_per_cont = utils.calculate_payment_from_container_resources(
                 self.QUERY["cru"],
                 self.QUERY["mru"] * 1024,
-                self.QUERY["sru"] * 1024,
+                self.QUERY["hru"] * 1024,
                 duration=60 * 60,
                 farm_name=self.farm,
             )
-            amount_to_refund = calculated_cost_per_cont * self.nodes_count + TRANSACTION_FEES
+            amount_to_refund = round(calculated_cost_per_cont * self.nodes_count + TRANSACTION_FEES, 6)
             asset = self.wallet._get_asset("TFT")
             self.wallet.transfer(init_wallet.address, amount_to_refund, asset=f"{asset.code}:{asset.issuer}")
 

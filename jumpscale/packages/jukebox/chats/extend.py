@@ -26,7 +26,7 @@ class Extend(JukeboxDeployChatflow):
         self.QUERY = {
             "cru": int(self.deployment.cpu),
             "mru": int(self.deployment.memory / 1024),
-            "sru": int(self.deployment.disk_size / 1024),
+            "hru": int(self.deployment.disk_size / 1024),
         }
         self.farm = self.deployment.farm_name
         self.expiration = self.deployment.expiration_date.timestamp() - j.data.time.utcnow().timestamp
@@ -38,7 +38,7 @@ class Extend(JukeboxDeployChatflow):
         self.nodes_count = self.nodes_count
         self.no_farms = 1
         available_farms = utils.get_possible_farms(
-            self.QUERY["cru"], self.QUERY["sru"], self.QUERY["mru"], self.nodes_count
+            self.QUERY["cru"], self.QUERY["hru"], self.QUERY["mru"], self.nodes_count
         )
         available_farms = list(available_farms)
         if len(available_farms) < self.no_farms:
@@ -50,7 +50,7 @@ class Extend(JukeboxDeployChatflow):
         cloud_units = utils.calculate_required_units(
             cpu=self.QUERY["cru"],
             memory=self.QUERY["mru"] * 1024,
-            disk_size=self.QUERY["sru"] * 1024,
+            disk_size=self.QUERY["hru"] * 1024,
             duration_seconds=self.expiration,
             number_of_containers=self.nodes_count,
         )

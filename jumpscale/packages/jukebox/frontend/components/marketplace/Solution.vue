@@ -201,8 +201,8 @@ module.exports = {
         { text: "IPv4 address", value: "ipv4" },
         { text: "IPv6 address", value: "ipv6" },
         { text: "Cpu", value: "cpu" },
-        { text: "Memory /MB", value: "memory" },
-        { text: "Disk Size /MB", value: "disk" },
+        { text: "Memory /GB", value: "memory" },
+        { text: "Disk Size /GB", value: "disk" },
         { text: "State", value: "state" },
         { text: "Creation Time", value: "creation" },
         { text: "Actions", value: "actions", sortable: false },
@@ -278,10 +278,8 @@ module.exports = {
             for (let j = 0; j < this.deployedSolutions[i].nodes.length; j++) {
               let workload = this.deployedSolutions[i].nodes[j];
               workload["cpu"] = this.deployedSolutions[i].cpu;
-              workload["memory"] = this.deployedSolutions[i].memory;
-              workload["disk"] = this.deployedSolutions[i].disk_size;
-              workload["disk"] = this.deployedSolutions[i].disk_size;
-
+              workload["memory"] = this.deployedSolutions[i].memory / 1024;
+              workload["disk"] = this.deployedSolutions[i].disk_size / 1024;
               workload["ipv4"] = workload.ipv4_address;
               workload["ipv6"] = workload.ipv6_address;
               workload["deploymentName"] =

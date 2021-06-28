@@ -7,7 +7,7 @@ from jumpscale.sals.jukebox.jukebox_deploy_chatflow import JukeboxDeployChatflow
 class DashDeploy(JukeboxDeployChatflow):
     title = "Dash"
     SOLUTION_TYPE = "dash"
-    QUERY = {"cru": 1, "sru": 1, "mru": 1}
+    QUERY = {"cru": 4, "mru": 8, "hru": 100}
     ENTERY_POINT = "/start_dash.sh"
     FLIST = "https://hub.grid.tf/ashraf.3bot/arrajput-dash-flist-1.0.flist"
     steps = [
