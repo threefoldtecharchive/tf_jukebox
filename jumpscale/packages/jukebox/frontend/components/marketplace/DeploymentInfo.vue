@@ -64,6 +64,9 @@ module.exports = {
         });
     },
   },
+  mounted() {
+    this.getDeploymentSecret();
+  },
   updated() {
     if (
       this.deployment.deployment_name !== this.lastDeploymentName &&
