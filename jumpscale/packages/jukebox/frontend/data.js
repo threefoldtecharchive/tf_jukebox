@@ -87,7 +87,7 @@ const BC_SOLUTIONS = {
             name: "CasperLabs",
             type: "casperlabs",
             image: "./assets/casperlabs.png",
-            disable: false,
+            disable: true,
             helpLink: `${DOCS_BASE_URL}/casperlabs`,
             description: "CasperLabs is the team behind the Casper Network, first blockchain built for enterprise adoption"
         },
