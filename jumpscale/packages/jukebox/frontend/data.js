@@ -47,7 +47,7 @@ const BC_SOLUTIONS = {
             name: "Polygon",
             type: "matic",
             image: "./assets/polygon.png",
-            disable: false,
+            disable: true,
             helpLink: `${DOCS_BASE_URL}/polygon`,
             description: "Protocol and framework for building Ethereum-compatible blockchain networks."
         },
