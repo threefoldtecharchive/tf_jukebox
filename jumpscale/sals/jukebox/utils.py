@@ -74,15 +74,35 @@ def get_network_ip_range():
     return j.sals.reservation_chatflow.reservation_chatflow.get_ip_range()
 
 
-def show_payment(bot, cost, wallet_name, expiry=5, description=None):
-    payment_id, _ = j.sals.billing.submit_payment(
-        amount=cost, wallet_name=wallet_name, refund_extra=False, expiry=expiry, description=description
-    )
+def show_payment(bot, amount, wallet_name, expiry=5, description=None):
+    wallet = j.clients.stellar.find(wallet_name)
+    if not wallet:
+        raise j.exceptions.NotFound(f"Couldn't find wallet {wallet_name}")
 
-    if cost > 0:
+    balance = wallet.get_balance_by_asset("TFT")
+    if balance >= amount:
+        if bot:
+            result = bot.single_choice(
+                f"Do you want to use your existing balance to pay {round(amount,4)} TFT? (This will impact the overall expiration of your deployments)",
+                ["Yes", "No"],
+                required=True,
+            )
+            if result == "Yes":
+                amount = 0
+        else:
+            amount = 0
+    elif not bot:
+        # Not enough funds in prepaid wallet and no bot passed to use to view QRcode
+        return False, amount, None
+
+    payment_id, _ = j.sals.billing.submit_payment(
+        amount=amount, wallet_name=wallet_name, refund_extra=False, expiry=expiry, description=description
+    )
+    if amount > 0:
         notes = []
-        return j.sals.billing.wait_payment(payment_id, bot=bot, notes=notes), cost, payment_id
-    return True, cost, payment_id
+        return j.sals.billing.wait_payment(payment_id, bot=bot, notes=notes), amount, payment_id
+    else:
+        return True, amount, payment_id
 
 
 def calculate_funding_amount(identity_name):
