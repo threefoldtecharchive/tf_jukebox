@@ -97,6 +97,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
             required=True,
             not_exist=["Deployment", deployment_names],
             max_length=20,
+            is_identifier=True,
         )
 
     @chatflow_step(title="Blockchain Information")
@@ -152,7 +153,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
 
         payment_success, _, self.payment_id = utils.show_payment(
             bot=self,
-            cost=calculated_cost_per_cont * self.nodes_count + 2 * TRANSACTION_FEES,
+            amount=calculated_cost_per_cont * self.nodes_count + 2 * TRANSACTION_FEES,
             wallet_name=self.wallet.instance_name,
             expiry=5,
             description=j.data.serializers.json.dumps({"type": "jukebox", "owner": self.owner_tname}),
@@ -238,17 +239,17 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
                 j.sals.billing.issue_refund(self.payment_id)
                 self.stop("Failed to deploy")
 
-            # take back one hour payment to the init_wallet.
-            calculated_cost_per_cont = utils.calculate_payment_from_container_resources(
-                self.QUERY["cru"],
-                self.QUERY["mru"] * 1024,
-                self.QUERY["hru"] * 1024,
-                duration=60 * 60,
-                farm_name=self.farm,
-            )
-            amount_to_refund = round(calculated_cost_per_cont * self.nodes_count + TRANSACTION_FEES, 6)
-            asset = self.wallet._get_asset("TFT")
-            self.wallet.transfer(init_wallet.address, amount_to_refund, asset=f"{asset.code}:{asset.issuer}")
+        # take back one hour payment to the init_wallet.
+        calculated_cost_per_cont = utils.calculate_payment_from_container_resources(
+            self.QUERY["cru"],
+            self.QUERY["mru"] * 1024,
+            self.QUERY["hru"] * 1024,
+            duration=60 * 60,
+            farm_name=self.farm,
+        )
+        amount_to_refund = round(calculated_cost_per_cont * self.nodes_count + TRANSACTION_FEES, 6)
+        asset = self.wallet._get_asset("TFT")
+        self.wallet.transfer(init_wallet.address, amount_to_refund, asset=f"{asset.code}:{asset.issuer}")
 
     @chatflow_step(title="Success", disable_previous=True, final_step=True)
     def success(self):
