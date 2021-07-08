@@ -10,6 +10,6 @@ provides an easy and simple way to deploy/manage block chain nodes on the TF Gri
   - Do monitoring to the deployed nodes
   - Notify user when his nodes about to expire / goes down
 # Structure
-- Jukebox interface (telegram bot) enables user to create, list and delete his nodes
-- Server running jumpscale which the user will communicate to it through the telegram bot
+- Jukebox interface enables user to create, list and delete his nodes
+- Server running jumpscale which the user will communicate to
 - TF Grid: where the nodes lives, the server sends request to the grid to do the required action
