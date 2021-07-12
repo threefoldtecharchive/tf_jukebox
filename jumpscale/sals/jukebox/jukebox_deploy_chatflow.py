@@ -153,7 +153,7 @@ class JukeboxDeployChatflow(MarketPlaceAppsChatflow):
 
         payment_success, _, self.payment_id = utils.show_payment(
             bot=self,
-            amount=calculated_cost_per_cont * self.nodes_count + 2 * TRANSACTION_FEES,
+            amount=calculated_cost_per_cont * self.nodes_count + 3 * TRANSACTION_FEES,
             wallet_name=self.wallet.instance_name,
             expiry=5,
             description=j.data.serializers.json.dumps({"type": "jukebox", "owner": self.owner_tname}),
