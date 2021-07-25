@@ -1,7 +1,7 @@
 <template>
   <v-app>
     <v-app-bar app>
-      <router-link to="/" style="text-decoration: none">
+      <router-link to="/marketplace" style="text-decoration: none">
         <v-row>
           <img
             class="ml-2"
