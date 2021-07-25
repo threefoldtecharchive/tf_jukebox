@@ -21,9 +21,9 @@ class PresearchDeploy(JukeboxDeployChatflow):
     ]
     QUERY = {"cru": 1, "mru": 1, "hru": 3}
 
-    @chatflow_step(title="User configurations")
+    @chatflow_step(title="Registration Code")
     def environment(self):
-        self.registration_code = self.string_ask("Please enter the registration code", required=True,)
+        self.registration_code = self.string_ask("Register your node and get a registration code from <a href=https://nodes.presearch.org/dashboard>Presearch</a>", required=True, html=True) 
         self.secret_env = {"registration_code": self.registration_code}
         self.metadata = {
             "form_info": {"chatflow": self.SOLUTION_TYPE, "Solution name": self.deployment_name,},
