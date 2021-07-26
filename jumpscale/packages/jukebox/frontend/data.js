@@ -8,24 +8,24 @@ const BC_SOLUTIONS = {
             type: "dash",
             image: "./assets/dash.png",
             disable: false,
-            helpLink: `${DOCS_BASE_URL}/dash`,
-            description: "Open source peer-to-peer cryptocurrency with a strong focus on the payments industry."
+            helpLink: `https://info.blockchainjukebox.com/#/jukebox__dash`,
+            description: "Open source Peer To Peer cryptocurrency with a strong focus on the payments industry."
         },
         digibyte: {
             name: "DigiByte",
             type: "digibyte",
             image: "./assets/digibyte.png",
             disable: false,
-            helpLink: `${DOCS_BASE_URL}/digibyte`,
-            description: "Safest, fastest, longest, and most decentralized UTXO blockchains in existence."
+            helpLink: ` https://info.blockchainjukebox.com/#/jukebox__digibyte`,
+            description: "Any server, computer, tablet or mobile phone connected to the DigiByte network becomes a node that helps relay transactions of the DigiByte blockchain."
         },
         presearch: {
             name: "Presearch",
             type: "presearch",
             image: "./assets/presearch.png",
             disable: false,
-            helpLink: `${DOCS_BASE_URL}/presearch`,
-            description: "Presearch is a decentralized search engine powered by blockchain technology."
+            helpLink: `https://info.blockchainjukebox.com/#/jukebox__presearch`,
+            description: "Decentralize Presearch search engine by deploying a Presearch node on ThreeFold Grid."
         },
         elrond: {
             name: "Elrond",
