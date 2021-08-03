@@ -16,3 +16,4 @@ class CommonChatBot(GedisChatBotPatch):
         EXPIRATION_TIME: "expiration_time",
         PAYMENT_TYPE: "paymet_type"
     }
+

@@ -66,4 +66,3 @@ class JukeboxBase(BaseTests):
         identity.register()
         identity.set_default()
 
-
