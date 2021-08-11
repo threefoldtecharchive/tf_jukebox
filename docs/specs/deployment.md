@@ -43,7 +43,7 @@ poetry install
   # you can pass the secret if you have a wallet already, and skip the activation step, needs to have xlms for activation
   activation_wallet.secret = <your secret>
   activation_wallet.activate_through_threefold_service()
-  activation.save()
+  activation_wallet.save()
   # init wallet can be done with the same way as the activation one.
   ```
 
@@ -70,6 +70,12 @@ identity = j.core.identity.new("default", <identity_name>, <email>, <words>, f"h
 identity.register()
 identity.set_default()
 identity.save()
+```
+
+if you have a previous insatllation of js-sdk, you should clear the threebot config to avoid conflicts betwwen current insatllation and the internal packages from the old installation.
+
+```
+j.servers.threebot.delete("default")
 ```
 
 - Start 3Bot server from jsng.
