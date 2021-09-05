@@ -7,7 +7,7 @@ from textwrap import dedent
 class PresearchDeploy(JukeboxDeployChatflow):
     title = "Presearch"
     SOLUTION_TYPE = "presearch"
-    FLIST = "https://hub.grid.tf/ashraf.3bot/arrajput-presearch-flist-1.0.flist"
+    FLIST = "https://hub.grid.tf/arehman/arrajput-presearch-flist-latest.flist"
     ENTERY_POINT = "/start_presearch.sh"
     steps = [
         "get_deployment_name",
