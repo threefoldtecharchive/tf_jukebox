@@ -23,7 +23,7 @@ const BC_SOLUTIONS = {
             name: "Presearch",
             type: "presearch",
             image: "./assets/presearch.png",
-            disable: false,
+            disable: true,
             helpLink: `https://info.blockchainjukebox.com/#/jukebox__presearch`,
             description: "Decentralize Presearch search engine by deploying a Presearch node on ThreeFold Grid."
         },
