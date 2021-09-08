@@ -27,6 +27,14 @@ const BC_SOLUTIONS = {
             helpLink: `https://info.blockchainjukebox.com/#/jukebox__presearch`,
             description: "Decentralize Presearch search engine by deploying a Presearch node on ThreeFold Grid."
         },
+        substrate: {
+            name: "Substrate",
+            type: "substrate",
+            image: "./assets/substrate.png",
+            disable: false,
+            helpLink: `https://info.blockchainjukebox.com/#/jukebox__substrate`,
+            description: "Substrate is a modular framework that enables you to create purpose-built blockchains by composing custom or pre-built components."
+        },
         elrond: {
             name: "Elrond",
             type: "elrond",
